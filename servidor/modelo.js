@@ -1,36 +1,56 @@
-
 function Sistema() {
-  
   this.usuarios = {};
-  
+
   this.agregarUsuario = function (nick) {
-    var activo = this.usuarioActivo(nick);
-    if (activo == true) {
+    let res = { nick: -1 };
+    if (!this.usuarios[nick]) {
       this.usuarios[nick] = new Usuario(nick);
+      res.nick = nick;
+    } else {
+      console.log("el nick " + nick + " está en uso");
     }
+    return res;
   };
 
   this.obtenerUsuarios = function () {
-    return this.usuarios;
+    let res = { nick: -1 };
+    if (Object.keys(this.usuarios).length > 0) {
+      res = this.usuarios;
+    }else {
+      console.log("no hay usuarios");
+    }
+    return res;
   };
 
   this.usuarioActivo = function (nick) {
+    let res = { nick: -1 };
     if (nick in this.usuarios) {
-      console.log("El usuario '" + nick + "' ya existe.");
+      return this.usuarios[nick];
+    }else {
+      res.nick = "No existe";
+      console.log("El usuario '" + nick + "' no existe.");
+      return res;
     }
   };
 
-  this.eliminarUsuario = function(nick) {
-    if(nick in this.usuarios){
-      delete this.usuarios.nick;
+  this.eliminarUsuario = function (nick) {
+    let res = { eliminado: "No se ha eliminado" };
+    if (nick in this.usuarios) {
+      delete this.usuarios[nick];
+      res.eliminado = "Eliminado con éxito";
     }
-  }
+    return res;
+  };
 
   this.numeroUsuarios = function () {
-    return Object.keys(this.usuarios).length;
+    let res = { num: -1 };
+    res.num = Object.keys(this.usuarios).length;
+    return res;
   };
 }
 
 function Usuario(nick) {
   this.nick = nick;
 }
+
+module.exports.Sistema = Sistema;

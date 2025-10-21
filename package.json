@@ -11,8 +11,8 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "testW": "node_modules\\.bin\\jasmine-node servidor",
-    "test": "./node_modules/.bin/jasmine-node servidor"
+    "start": "node index.js",
+    "test": "jasmine servidor/modeloSpec.js"
   },
   "dependencies": {
     "ansi-regex": "^6.2.2",
