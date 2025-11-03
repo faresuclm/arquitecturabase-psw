@@ -7,7 +7,13 @@ function ClienteRest() {
       if (data.nick != -1) {
         console.log("Usuario " + nick + " ha sido registrado");
         msg = "Bienvenido al sistema, " + nick;
-        localStorage.setItem("nick", nick);
+  //localStorage.setItem("nick", nick);
+  // Usar la API de jquery-cookie: $.cookie('nick', nick) para setear la cookie
+  $.cookie("nick", nick);
+        // Solo eliminar el formulario cuando el registro haya sido exitoso
+        if (typeof cw !== 'undefined' && cw.eliminarFormulario) {
+          cw.eliminarFormulario();
+        }
       } else {
         console.log("El nick ya está ocupado");
       }
