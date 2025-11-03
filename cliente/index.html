@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cliente</title>
-    <script src="clienteRest.js"></script>
-    <script src="controlWeb.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
         integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="/cliente/clienteRest.js"></script>
+    <script src="/cliente/controlWeb.js"></script>
     <!-- Latest compiled and minified CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
     <!-- Popper JS -->
@@ -17,11 +17,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
 </head>
-<script>
-    rest = new ClienteRest();
-    cw = new ControlWeb();
-</script>
-
 <body>
 
     <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
@@ -43,15 +38,22 @@
     </nav>
     <div class="container-fluid">
         <h3>Arquitectura base</h3>
+        <div id="mensaje" class="mt-2 mb-3"></div>
         <div id="au" class="form-group">
+            <!--
             <div class="mb-3">
                 <label for="nick">Nick:</label>
                 <input type="text" class="form-control" id="nick">
             </div>
             <button id="btnAU" type="submit" class="btn btn-primary">Submit</button>
+            -->
         </div>
     </div>
-
 </body>
-
+<script defer>
+    cw = new ControlWeb();
+    rest = new ClienteRest(cw);
+    //cw.mostrarAgregarUsuario();
+    cw.comprobarSesion();
+</script>
 </html>
