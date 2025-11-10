@@ -1,3 +1,4 @@
+require('dotenv').config({ path: './secrets.env' });
 const fs = require("fs");
 const express = require("express");
 const cookieSession = require("cookie-session");
