@@ -1,14 +1,21 @@
 function ControlWeb() {
-  this.mostrarAgregarUsuario = function () {
-    // Añadir el formulario dentro del contenedor #au. No crear otro elemento con id "au".
-    let cadena = '<div class="mb-3">';
-    cadena += '<label for="nick">Name:</label>';
-    cadena += '<input type="text" class="form-control" id="nick" placeholder="Introduce tu nick">';
-    cadena += '<button id="btnAU" type="submit" class="btn btn-primary">Submit</button>';
-    cadena += '</div>';
+
+    this.mostrarAgregarUsuario = function () {
+        $('#bnv').remove();
+        $('#mAU').remove();
+        let cadena='<div id="mAU">';
+        cadena = cadena + '<div class="card"><div class="card-body">';
+        cadena = cadena +'<div class="form-group">';
+        cadena = cadena + '<label for="nick">Nick:</label>';
+        cadena = cadena + '<p><input type="text" class="form-control" id="nick" placeholder="introduce un nick"></p>';
+        cadena = cadena + '<button id="btnAU" type="submit" class="btn btn-primary">Submit</button>';
+        cadena=cadena+'<div><a href="/auth/google">' +
+            '<img src="/cliente/img/web_neutral_rd_ctn@2x.png" style="height:40px;"></a></div>';
+        cadena = cadena + '</div>';
+        cadena = cadena + '</div></div></div>'
     // Vaciar previamente para evitar duplicados y luego añadir
     $("#au").empty().append(cadena);
-    $("#btnAU").on("click", function () {
+        $("#btnAU").on("click", function () {
       let nick = $("#nick").val();
       rest.agregarUsuario(nick);
       // No eliminar el formulario aquí: eliminarlo solo cuando el registro
