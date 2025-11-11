@@ -37,6 +37,7 @@
     "lru-cache": "^10.4.3",
     "minimatch": "^9.0.5",
     "minipass": "^7.1.2",
+    "mongodb": "^7.0.0",
     "nodejs": "^0.0.0",
     "package-json-from-dist": "^1.0.1",
     "passport": "^0.5.3",

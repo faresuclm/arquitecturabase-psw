@@ -1,5 +1,18 @@
+const datos = require("./cad.js");
+
 function Sistema() {
   this.usuarios = {};
+  this.cad = new datos.CAD();
+
+  this.cad.conectar(function (db) {
+    console.log("Conectado a Mongo Atlas");
+  });
+
+  this.usuarioGoogle = function (usr, callback) {
+    this.cad.buscarOCrearUsuario(usr, function (obj) {
+      callback(obj);
+    });
+  };
 
   this.agregarUsuario = function (nick) {
     let res = { nick: -1 };
@@ -16,7 +29,7 @@ function Sistema() {
     let res = { nick: -1 };
     if (Object.keys(this.usuarios).length > 0) {
       res = this.usuarios;
-    }else {
+    } else {
       console.log("no hay usuarios");
     }
     return res;
@@ -26,7 +39,7 @@ function Sistema() {
     let res = { nick: -1 };
     if (nick in this.usuarios) {
       return this.usuarios[nick];
-    }else {
+    } else {
       res.nick = "No existe";
       console.log("El usuario '" + nick + "' no existe.");
       return res;
