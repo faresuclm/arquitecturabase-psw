@@ -1,7 +1,7 @@
 function CAD() {
   const mongo = require("mongodb").MongoClient;
   const ObjectId = require("mongodb").ObjectId;
-  this.usuarios = null;
+  this.usuarios;
 
   this.conectar = async function (callback) {
     let cad = this;
@@ -12,7 +12,7 @@ function CAD() {
         process.env.MONGODB_PASSWORD +
         "@" +
         process.env.MONGODB_URL +
-        "?appName=arquitecturabase-psw"
+        "/?retryWrites=true&w=majority"
     );
     await client.connect();
     const database = client.db("sistema");
@@ -23,7 +23,7 @@ function CAD() {
   this.buscarOCrearUsuario = function (usr, callback) {
     buscarOCrear(this.usuarios, usr, callback);
   };
-  
+
   function buscarOCrear(coleccion, criterio, callback) {
     coleccion.findOneAndUpdate(
       criterio,
