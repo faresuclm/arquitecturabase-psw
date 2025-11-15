@@ -66,12 +66,16 @@ function Sistema() {
         if (!obj.nick) {
             obj.nick = obj.email;
         }
-        this.cad.buscarUsuario(obj, function (usr) {
+        // Buscar si ya existe un usuario con ese email
+        this.cad.buscarUsuario({"email": obj.email}, function (usr) {
             if (!usr) {
+                // El usuario no existe, proceder con el registro
                 modelo.cad.insertarUsuario(obj, function (res) {
                     callback(res);
                 });
             } else {
+                // El usuario ya existe
+                console.log("El email " + obj.email + " ya está registrado");
                 callback({"email": -1});
             }
         });

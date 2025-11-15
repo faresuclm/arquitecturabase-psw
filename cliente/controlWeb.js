@@ -8,8 +8,10 @@ function ControlWeb() {
                 e.preventDefault();
                 let email = $("#email").val();
                 let pwd = $("#pwd").val();
+                let nombre = $("#nombre").val();
+                let apellidos = $("#apellidos").val();
 
-                // Validación de campos vacíos
+                // Validación de campos vacíos (email y password son obligatorios)
                 if (!email || !pwd) {
                     cw.mostrarMensajeError("Por favor, completa todos los campos obligatorios (email y contraseña).");
                     return;
@@ -28,7 +30,7 @@ function ControlWeb() {
                     return;
                 }
 
-                rest.registrarUsuario(email, pwd);
+                rest.registrarUsuario(email, pwd, nombre, apellidos);
                 console.log(email + " " + pwd);
             });
 

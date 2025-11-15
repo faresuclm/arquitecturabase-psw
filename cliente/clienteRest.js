@@ -1,10 +1,23 @@
 function ClienteRest() {
 
-    this.registrarUsuario = function (email, password) {
+    this.registrarUsuario = function (email, password, nombre, apellidos) {
+        let userData = {
+            "email": email,
+            "password": password
+        };
+
+        // Agregar nombre y apellidos si están presentes
+        if (nombre) {
+            userData.nombre = nombre;
+        }
+        if (apellidos) {
+            userData.apellidos = apellidos;
+        }
+
         $.ajax({
             type: 'POST',
             url: '/registrarUsuario',
-            data: JSON.stringify({"email": email, "password": password}),
+            data: JSON.stringify(userData),
             success: function (data) {
                 if (data.nick != -1) {
                     console.log("Usuario " + data.nick + " ha sido registrado");
