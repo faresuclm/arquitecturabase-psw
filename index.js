@@ -1,5 +1,4 @@
-
-const bodyParser=require("body-parser");
+const bodyParser = require("body-parser");
 const fs = require("fs");
 const express = require("express");
 const cookieSession = require("cookie-session");
@@ -11,7 +10,7 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 let sistema = new modelo.Sistema();
 
 app.use(express.static(__dirname + "/"));
-app.use(bodyParser.urlencoded({extended:true}));
+app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 app.use(
     cookieSession({
@@ -94,12 +93,18 @@ app.get("/good", function (request, response) {
 app.post('/oneTap/callback',
     passport.authenticate('google-one-tap', {failureRedirect: '/fallo'}),
     function (req, res) {
-    // Successful authentication, redirect home.
+        // Successful authentication, redirect home.
         res.redirect('/good');
-});
+    });
 
 app.get("/fallo", function (request, response) {
     response.send({nick: "nook"});
+});
+
+app.post("/registrarUsuario", function (request, response) {
+    sistema.registrarUsuario(request.body, function (res) {
+        response.send({"nick": res.email});
+    });
 });
 
 app.listen(PORT, () => {
