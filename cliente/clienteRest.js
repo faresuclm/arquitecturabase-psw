@@ -11,7 +11,7 @@ function ClienteRest() {
                     $.cookie("nick", data.nick);
                     cw.limpiar();
                     cw.mostrarMensaje("Bienvenido al sistema,"+data.nick);
-                //cw.mostrarLogin();
+                    cw.mostrarLogin();
                 } else {
                     console.log("El nick está ocupado");
                 }

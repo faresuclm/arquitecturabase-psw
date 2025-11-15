@@ -8,7 +8,7 @@ function ControlWeb() {
                 let email = $("#email").val();
                 let pwd = $("#pwd").val();
                 if (email && pwd) {
-                    //rest.registrarUsuario(nick);
+                    rest.registrarUsuario(nick);
                     console.log(email + " " + pwd);
                 }
             });

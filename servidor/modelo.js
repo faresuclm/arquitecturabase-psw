@@ -77,35 +77,6 @@ function Sistema() {
         });
     }
 
-    this.buscarUsuario = function (obj, callback) {
-        buscar(this.usuarios, obj, callback);
-    }
-
-    this.insertarUsuario = function (usuario, callback) {
-        insertar(this.usuarios, usuario, callback);
-    }
-
-    function buscar(coleccion, criterio, callback) {
-        coleccion.find(criterio).toArray(function (error, usuarios) {
-            if (usuarios.length == 0) {
-                callback(undefined);
-            } else {
-                callback(usuarios[0]);
-            }
-        });
-    }
-
-    function insertar(coleccion, elemento, callback) {
-        coleccion.insertOne(elemento, function (err, result) {
-            if (err) {
-                console.log("error");
-            } else {
-                console.log("Nuevo elemento creado");
-                callback(elemento);
-            }
-        });
-    }
-
 }
 
 function Usuario(nick) {
