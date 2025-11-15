@@ -1,4 +1,4 @@
-<html lang="en">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
@@ -20,6 +20,85 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: white !important;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+            padding: 15px 30px;
+        }
+
+        .navbar-brand {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700 !important;
+            font-size: 28px !important;
+            letter-spacing: 1px;
+        }
+
+        .nav-link {
+            color: #5a6c7d !important;
+            font-weight: 500;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+
+        #btnSalir {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+            color: white !important;
+            padding: 10px 24px !important;
+            border-radius: 10px !important;
+            font-weight: 600 !important;
+            transition: all 0.3s ease;
+        }
+
+        #btnSalir:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            padding: 40px;
+            margin-top: 30px;
+            margin-bottom: 30px;
+            max-width: 1200px;
+        }
+
+        #registro {
+            width: 100%;
+        }
+
+        #msg {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        #msg.center-message {
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: auto;
+            max-width: none;
+        }
+
+        #msg > div {
+            pointer-events: auto;
+        }
+    </style>
 
 </head>
 
@@ -31,43 +110,24 @@
      data-skip_prompt_cookie="nick"
 ></div>
 
-<nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+<!-- Contenedor de mensajes (posición fija en la parte superior) -->
+<div id="msg"></div>
+
+<nav class="navbar navbar-expand-sm" id="mainNav" style="display: none;">
     <!-- Brand/logo -->
-    <a class="navbar-brand" href="#">Logo</a>
+    <a class="navbar-brand" href="#">BaseArch</a>
 
     <!-- Links -->
-    <ul class="navbar-nav">
+    <ul class="navbar-nav ml-auto">
         <li class="nav-item">
-            <a class="nav-link" href="#">Link 1</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#">Link 2</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#" id="btnSalir" style="cursor: pointer;">Salir</a>
+            <a class="nav-link" href="#" id="btnSalir" style="cursor: pointer;">Cerrar Sesión</a>
         </li>
     </ul>
 </nav>
 
-<!--<div class="container-fluid">
-    <h3>Arquitectura base</h3>
-    <div id="mensaje" class="mt-2 mb-3"></div>
-    <div id="au" class="form-group">
-        &lt;!&ndash;
-        <div class="mb-3">
-            <label for="nick">Nick:</label>
-            <input type="text" class="form-control" id="nick">
-        </div>
-        <button id="btnAU" type="submit" class="btn btn-primary">Submit</button>
-        &ndash;&gt;
-    </div>
-</div>-->
-
-<div class="container">
-    <h3>Sistema</h3>
+<div class="container" id="mainContainer">
     <div id="au"></div>
-    <div id="registro"></div>
-    <div id="msg"></div>
+    <div id="registro" style="display: flex; justify-content: center; align-items: center;"></div>
 </div>
 </body>
 <script defer>
@@ -76,7 +136,7 @@
     //cw.mostrarAgregarUsuario();
     cw.comprobarSesion();
 
-    // Configurar el botón de salir
+    // Configurar el botón de salir del nav
     $(document).ready(function() {
         $("#btnSalir").on("click", function(e) {
             e.preventDefault();

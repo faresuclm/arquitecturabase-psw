@@ -87,7 +87,7 @@ function Sistema() {
             if (usr) {
                 // Usuario encontrado con credenciales correctas
                 console.log("Usuario " + usr.email + " ha iniciado sesión correctamente");
-                callback({"email": usr.email});
+                callback({"email": usr.email, "nombre": usr.nombre || usr.email});
             } else {
                 // Usuario no encontrado o credenciales incorrectas
                 console.log("Credenciales incorrectas para el email: " + obj.email);

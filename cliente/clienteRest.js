@@ -22,10 +22,20 @@ function ClienteRest() {
                 if (data.nick != -1) {
                     console.log("Usuario " + data.nick + " ha sido registrado");
                     $.cookie("nick", data.nick);
-                    cw.mostrarMensajeExito("¡Registro exitoso! Bienvenido al sistema, " + data.nick);
+                    // Guardar el nombre para mostrarlo en lugar del email
+                    if (nombre) {
+                        $.cookie("userName", nombre);
+                    } else {
+                        $.cookie("userName", data.nick);
+                    }
+                    let displayName = nombre || data.nick;
+                    cw.mostrarMensajeExito("¡Registro exitoso! Bienvenido al sistema, " + displayName);
                     setTimeout(function() {
                         cw.limpiar();
-                        cw.mostrarMensaje("Bienvenido al sistema, " + data.nick);
+                        // Mostrar el navegador y ocultar el contenedor
+                        $("#mainNav").show();
+                        $("#mainContainer").hide();
+                        cw.mostrarMensaje("Bienvenido al sistema, " + displayName);
                     }, 2000);
                 } else {
                     console.log("El email ya está registrado");
@@ -60,10 +70,16 @@ function ClienteRest() {
                 if (data.nick && data.nick != -1) {
                     console.log("Usuario " + data.nick + " ha iniciado sesión");
                     $.cookie("nick", data.nick);
-                    cw.mostrarMensajeExito("¡Inicio de sesión exitoso! Bienvenido de nuevo, " + data.nick);
+                    // Guardar el nombre para mostrarlo
+                    let displayName = data.nombre || data.nick;
+                    $.cookie("userName", displayName);
+                    cw.mostrarMensajeExito("¡Inicio de sesión exitoso! Bienvenido de nuevo, " + displayName);
                     setTimeout(function() {
                         cw.limpiar();
-                        cw.mostrarMensaje("Bienvenido al sistema, " + data.nick);
+                        // Mostrar el navegador y ocultar el contenedor
+                        $("#mainNav").show();
+                        $("#mainContainer").hide();
+                        cw.mostrarMensaje("Bienvenido al sistema, " + displayName);
                     }, 2000);
                 } else {
                     console.log("Credenciales incorrectas");

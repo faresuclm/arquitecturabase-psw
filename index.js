@@ -110,7 +110,7 @@ app.post("/registrarUsuario", function (request, response) {
 app.post("/loginUsuario", function (request, response) {
     sistema.loginUsuario(request.body, function (res) {
         if (res && res.email) {
-            response.send({"nick": res.email});
+            response.send({"nick": res.email, "nombre": res.nombre});
         } else {
             response.send({"nick": -1});
         }
