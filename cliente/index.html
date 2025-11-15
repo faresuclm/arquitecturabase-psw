@@ -44,7 +44,7 @@
             <a class="nav-link" href="#">Link 2</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="#">Salir</a>
+            <a class="nav-link" href="#" id="btnSalir" style="cursor: pointer;">Salir</a>
         </li>
     </ul>
 </nav>
@@ -75,6 +75,14 @@
     rest = new ClienteRest(cw);
     //cw.mostrarAgregarUsuario();
     cw.comprobarSesion();
+
+    // Configurar el botón de salir
+    $(document).ready(function() {
+        $("#btnSalir").on("click", function(e) {
+            e.preventDefault();
+            cw.salir();
+        });
+    });
 </script>
 
 </html>

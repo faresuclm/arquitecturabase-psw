@@ -77,6 +77,21 @@ function Sistema() {
         });
     }
 
+    this.loginUsuario = function (obj, callback) {
+        // Buscar usuario por email y password
+        this.cad.buscarUsuario({"email": obj.email, "password": obj.password}, function (usr) {
+            if (usr) {
+                // Usuario encontrado con credenciales correctas
+                console.log("Usuario " + usr.email + " ha iniciado sesión correctamente");
+                callback({"email": usr.email});
+            } else {
+                // Usuario no encontrado o credenciales incorrectas
+                console.log("Credenciales incorrectas para el email: " + obj.email);
+                callback({"email": -1});
+            }
+        });
+    }
+
 }
 
 function Usuario(nick) {

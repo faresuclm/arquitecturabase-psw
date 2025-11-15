@@ -107,6 +107,26 @@ app.post("/registrarUsuario", function (request, response) {
     });
 });
 
+app.post("/loginUsuario", function (request, response) {
+    sistema.loginUsuario(request.body, function (res) {
+        if (res && res.email) {
+            response.send({"nick": res.email});
+        } else {
+            response.send({"nick": -1});
+        }
+    });
+});
+
+app.post("/cerrarSesion", function (request, response) {
+    let nick = request.body.nick;
+    console.log("Usuario " + nick + " ha cerrado sesión");
+    // Aquí podrías agregar lógica adicional como:
+    // - Registrar el logout en la base de datos
+    // - Actualizar el estado del usuario
+    // - Limpiar recursos asociados
+    response.send({"resultado": "sesion_cerrada", "nick": nick});
+});
+
 app.listen(PORT, () => {
     console.log(`App está escuchando en el puerto ${PORT}`);
     console.log("Ctrl+C para salir");

@@ -2,15 +2,73 @@ function ControlWeb() {
 
     this.mostrarRegistro = function () {
         $("#fmRegistro").remove();
+        $("#fmLogin").remove();
         $("#registro").load("./cliente/registro.html", function () {
             $("#btnRegistro").on("click", function (e) {
                 e.preventDefault();
                 let email = $("#email").val();
                 let pwd = $("#pwd").val();
-                if (email && pwd) {
-                    rest.registrarUsuario(nick);
-                    console.log(email + " " + pwd);
+
+                // Validación de campos vacíos
+                if (!email || !pwd) {
+                    cw.mostrarMensajeError("Por favor, completa todos los campos obligatorios (email y contraseña).");
+                    return;
                 }
+
+                // Validación básica de email
+                let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    cw.mostrarMensajeError("Por favor, introduce un email válido.");
+                    return;
+                }
+
+                // Validación de contraseña mínima
+                if (pwd.length < 6) {
+                    cw.mostrarMensajeError("La contraseña debe tener al menos 6 caracteres.");
+                    return;
+                }
+
+                rest.registrarUsuario(email, pwd);
+                console.log(email + " " + pwd);
+            });
+
+            $("#btnMostrarLogin").on("click", function (e) {
+                e.preventDefault();
+                cw.mostrarLogin();
+            });
+        });
+    }
+
+    this.mostrarLogin = function () {
+        $("#fmLogin").remove();
+        $("#fmRegistro").remove();
+        $("#registro").load("./cliente/login.html", function () {
+            $("#btnLogin").on("click", function (e) {
+                e.preventDefault();
+                let email = $("#emailLogin").val();
+                let pwd = $("#pwdLogin").val();
+
+                // Validación de campos vacíos
+                if (!email || !pwd) {
+                    cw.mostrarMensajeError("Por favor, completa todos los campos obligatorios (email y contraseña).");
+                    return;
+                }
+
+                // Validación básica de email
+                let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    cw.mostrarMensajeError("Por favor, introduce un email válido.");
+                    return;
+                }
+
+                // Enviar datos al servidor
+                rest.loginUsuario({"email": email, "password": pwd});
+                console.log(email + " login attempt");
+            });
+
+            $("#btnMostrarRegistro").on("click", function (e) {
+                e.preventDefault();
+                cw.mostrarRegistro();
             });
         });
     }
@@ -56,18 +114,71 @@ function ControlWeb() {
             cw.eliminarFormulario();
         } else {
             //cw.mostrarAgregarUsuario();
-            cw.mostrarRegistro();
+            cw.mostrarLogin();
         }
     };
 
     this.mostrarMensaje = function (msg) {
-        $("#mensaje").html(msg);
+        $("#msg").html(msg);
+    };
+
+    this.mostrarMensajeExito = function (msg) {
+        $("#msg").html('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+            '<strong>✓ Éxito:</strong> ' + msg +
+            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+            '<span aria-hidden="true">&times;</span>' +
+            '</button>' +
+            '</div>');
+    };
+
+    this.mostrarMensajeError = function (msg) {
+        $("#msg").html('<div class="alert alert-danger alert-dismissible fade show" role="alert">' +
+            '<strong>✗ Error:</strong> ' + msg +
+            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+            '<span aria-hidden="true">&times;</span>' +
+            '</button>' +
+            '</div>');
+    };
+
+    this.mostrarMensajeInfo = function (msg) {
+        $("#msg").html('<div class="alert alert-info alert-dismissible fade show" role="alert">' +
+            '<strong>ℹ Info:</strong> ' + msg +
+            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+            '<span aria-hidden="true">&times;</span>' +
+            '</button>' +
+            '</div>');
     };
 
     this.salir = function () {
-        // Eliminar la cookie con la API correcta de jquery-cookie
-        // (se expone como $.removeCookie)
-        $.removeCookie("nick");
-        location.reload();
+        let nick = $.cookie("nick");
+
+        if (!nick) {
+            cw.mostrarMensajeInfo("No hay ninguna sesión activa.");
+            return;
+        }
+
+        // Confirmación antes de cerrar sesión
+        if (confirm("¿Estás seguro de que deseas cerrar sesión?")) {
+            // Mostrar mensaje de despedida
+            cw.mostrarMensajeInfo("Cerrando sesión de " + nick + "...");
+
+            // Notificar al servidor (opcional, pero buena práctica)
+            rest.cerrarSesion(nick);
+
+            // Eliminar la cookie
+            $.removeCookie("nick");
+
+            // Esperar un momento antes de recargar
+            setTimeout(function() {
+                location.reload();
+            }, 1000);
+        }
     };
+
+    this.limpiar = function () {
+        $("#fmRegistro").remove();
+        $("#fmLogin").remove();
+        $("#registro").empty();
+        $("#au").empty();
+    }
 }
