@@ -21,22 +21,15 @@ function ClienteRest() {
             success: function (data) {
                 if (data.nick != -1) {
                     console.log("Usuario " + data.nick + " ha sido registrado");
-                    $.cookie("nick", data.nick);
-                    // Guardar el nombre para mostrarlo en lugar del email
-                    if (nombre) {
-                        $.cookie("userName", nombre);
-                    } else {
-                        $.cookie("userName", data.nick);
-                    }
                     let displayName = nombre || data.nick;
-                    cw.mostrarMensajeExito("¡Registro exitoso! Bienvenido al sistema, " + displayName);
+
+                    // Mostrar mensaje de verificación de correo
+                    cw.mostrarMensajeInfo("¡Registro exitoso! Por favor, verifica tu correo electrónico (" + data.nick + ") para completar el registro. Te hemos enviado un enlace de verificación.");
+
+                    // Redirigir al login después de 4 segundos
                     setTimeout(function() {
-                        cw.limpiar();
-                        // Mostrar el navegador y ocultar el contenedor
-                        $("#mainNav").show();
-                        $("#mainContainer").hide();
-                        cw.mostrarMensaje("Bienvenido al sistema, " + displayName);
-                    }, 2000);
+                        cw.mostrarLogin();
+                    }, 4000);
                 } else {
                     console.log("El email ya está registrado");
                     cw.mostrarMensajeError("El email ya está registrado. Por favor, utiliza otro email o inicia sesión.");
@@ -82,8 +75,8 @@ function ClienteRest() {
                         cw.mostrarMensaje("Bienvenido al sistema, " + displayName);
                     }, 2000);
                 } else {
-                    console.log("Credenciales incorrectas");
-                    cw.mostrarMensajeError("Email o contraseña incorrectos. Por favor, verifica tus credenciales.");
+                    console.log("Credenciales incorrectas o correo no verificado");
+                    cw.mostrarMensajeError("No se puede iniciar sesión. Verifica que tus credenciales sean correctas y que hayas confirmado tu correo electrónico.");
                 }
             },
             error: function (xhr, textStatus, errorThrown) {
@@ -93,7 +86,7 @@ function ClienteRest() {
                 if (xhr.status === 0) {
                     mensajeError += "No se pudo conectar con el servidor.";
                 } else if (xhr.status === 401) {
-                    mensajeError += "Credenciales inválidas.";
+                    mensajeError += "Credenciales inválidas o correo no verificado.";
                 } else if (xhr.status === 400) {
                     mensajeError += "Datos inválidos.";
                 } else if (xhr.status === 500) {

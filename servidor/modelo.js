@@ -1,4 +1,6 @@
 const datos = require("./cad.js");
+const correo = require("../cliente/email.js");
+
 
 function Sistema() {
     this.usuarios = {};
@@ -66,21 +68,22 @@ function Sistema() {
         if (!obj.nick) {
             obj.nick = obj.email;
         }
-        // Buscar si ya existe un usuario con ese email
-        this.cad.buscarUsuario({"email": obj.email}, function (usr) {
+        this.cad.buscarUsuario(obj, function (usr) {
             if (!usr) {
-                // El usuario no existe, proceder con el registro
+                //el usuario no existe, luego lo puedo registrar
+                obj.key = Date.now().toString();
+                obj.confirmada = false;
                 modelo.cad.insertarUsuario(obj, function (res) {
                     callback(res);
                 });
+                correo.enviarEmail(obj.email, obj.key, "Confirmar cuenta");
             } else {
-                // El usuario ya existe
-                console.log("El email " + obj.email + " ya está registrado");
                 callback({"email": -1});
             }
         });
     }
 
+    /*
     this.loginUsuario = function (obj, callback) {
         // Buscar usuario por email y password
         this.cad.buscarUsuario({"email": obj.email, "password": obj.password}, function (usr) {
@@ -94,6 +97,31 @@ function Sistema() {
                 callback({"email": -1});
             }
         });
+    }*/
+
+    this.loginUsuario = function (obj, callback) {
+        this.cad.buscarUsuario({"email": obj.email, "confirmada": true}, function (usr) {
+            if (usr && usr.password == obj.password) {
+                callback(usr);
+            } else {
+                callback({"email": -1});
+            }
+        });
+    }
+
+
+    this.confirmarUsuario = function (obj, callback) {
+        let modelo = this;
+        this.cad.buscarUsuario({"email": obj.email, "confirmada": false, "key": obj.key}, function (usr) {
+            if (usr) {
+                usr.confirmada = true;
+                modelo.cad.actualizarUsuario(usr, function (res) {
+                    callback({"email": res.email}); //callback(res)
+                })
+            } else {
+                callback({"email": -1});
+            }
+        })
     }
 
 }

@@ -110,6 +110,12 @@ function ControlWeb() {
     this.comprobarSesion = function () {
         // Usar la API de jquery-cookie: $.cookie('nick') para leer la cookie.
         let nick = $.cookie("nick");
+
+        // Verificar si viene desde la confirmación de correo
+        let urlParams = new URLSearchParams(window.location.search);
+        let verificado = urlParams.get('verificado');
+        let email = urlParams.get('email');
+
         if (nick) {
             // Obtener el nombre del usuario guardado en la cookie
             let displayName = $.cookie("userName") || nick;
@@ -125,8 +131,28 @@ function ControlWeb() {
             $("#mainNav").hide();
             // Mostrar el contenedor principal para login/registro
             $("#mainContainer").show();
-            //cw.mostrarAgregarUsuario();
+
+            // Mostrar el formulario de login
             cw.mostrarLogin();
+
+            // Si viene desde la verificación de correo, mostrar mensaje
+            if (verificado === 'true') {
+                setTimeout(function() {
+                    cw.mostrarMensajeExito("¡Tu cuenta ha sido verificada exitosamente! Ahora puedes iniciar sesión.");
+                    // Pre-rellenar el email si está disponible
+                    if (email) {
+                        $("#emailLogin").val(decodeURIComponent(email));
+                    }
+                    // Limpiar la URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 500);
+            } else if (verificado === 'false') {
+                setTimeout(function() {
+                    cw.mostrarMensajeError("Error al verificar la cuenta. El enlace puede haber expirado o ser inválido.");
+                    // Limpiar la URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 500);
+            }
         }
     };
 
