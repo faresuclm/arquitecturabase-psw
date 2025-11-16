@@ -1,5 +1,7 @@
 const datos = require("./cad.js");
 const correo = require("../cliente/email.js");
+const bcrypt = require("bcrypt");
+const SALT_ROUNDS = 10; // Número de rondas para el salt de bcrypt
 
 
 function Sistema() {
@@ -70,13 +72,25 @@ function Sistema() {
         }
         this.cad.buscarUsuario(obj, function (usr) {
             if (!usr) {
-                //el usuario no existe, luego lo puedo registrar
-                obj.key = Date.now().toString();
-                obj.confirmada = false;
-                modelo.cad.insertarUsuario(obj, function (res) {
-                    callback(res);
+                // El usuario no existe, luego lo puedo registrar
+                // Cifrar la contraseña con bcrypt antes de guardarla
+                bcrypt.hash(obj.password, SALT_ROUNDS, function(err, hash) {
+                    if (err) {
+                        console.error("Error al cifrar la contraseña:", err);
+                        callback({"email": -1});
+                        return;
+                    }
+
+                    // Reemplazar la contraseña en texto plano por el hash
+                    obj.password = hash;
+                    obj.key = Date.now().toString();
+                    obj.confirmada = false;
+
+                    modelo.cad.insertarUsuario(obj, function (res) {
+                        callback(res);
+                    });
+                    correo.enviarEmail(obj.email, obj.key, "Confirmar cuenta");
                 });
-                correo.enviarEmail(obj.email, obj.key, "Confirmar cuenta");
             } else {
                 callback({"email": -1});
             }
@@ -101,9 +115,26 @@ function Sistema() {
 
     this.loginUsuario = function (obj, callback) {
         this.cad.buscarUsuario({"email": obj.email, "confirmada": true}, function (usr) {
-            if (usr && usr.password == obj.password) {
-                callback(usr);
+            if (usr) {
+                // Usuario encontrado y confirmado, ahora comparar la contraseña
+                bcrypt.compare(obj.password, usr.password, function(err, result) {
+                    if (err) {
+                        console.error("Error al comparar contraseñas:", err);
+                        callback({"email": -1});
+                        return;
+                    }
+
+                    if (result) {
+                        // Contraseña correcta
+                        callback(usr);
+                    } else {
+                        // Contraseña incorrecta
+                        console.log("Contraseña incorrecta para el usuario:", usr.email);
+                        callback({"email": -1});
+                    }
+                });
             } else {
+                // Usuario no encontrado o no confirmado
                 callback({"email": -1});
             }
         });

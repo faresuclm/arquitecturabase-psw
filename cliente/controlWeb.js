@@ -123,7 +123,7 @@ function ControlWeb() {
             $("#mainNav").show();
             // Ocultar el contenedor principal cuando hay sesión
             $("#mainContainer").hide();
-            cw.mostrarMensaje("Bienvenido al sistema, " + displayName);
+            cw.mostrarMensaje("Bienvenido " + displayName);
             // Ocultar/limpiar el formulario si ya hay sesión
             cw.eliminarFormulario();
         } else {

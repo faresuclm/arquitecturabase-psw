@@ -3,3 +3,5 @@ node_modules
 *.gpg
 *.env
 .idea
+.env.local
+.env*.local

@@ -1,3 +1,4 @@
+
 const bodyParser = require("body-parser");
 const fs = require("fs");
 const express = require("express");
@@ -6,8 +7,14 @@ const app = express();
 const LocalStrategy = require('passport-local').Strategy;
 const passport = require("./servidor/passport-setup");
 const modelo = require("./servidor/modelo.js");
-const PORT = process.env.PORT || 3000;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const PORT = parseInt(process.env.PORT) || 8080;
+const haIniciado = function (request, response, next) {
+    if (request.user) {
+        next();
+    } else {
+        response.redirect("/")
+    }
+}
 let sistema = new modelo.Sistema();
 
 // Middleware
@@ -48,15 +55,24 @@ app.get("/agregarUsuario/:nick", function (request, response) {
     response.send(res);
 });
 
-app.get("/obtenerUsuarios", function (request, response) {
-    let res = sistema.obtenerUsuarios();
-    response.send(res);
+app.get("/obtenerUsuarios",haIniciado,function(request,response){
+    let lista=sistema.obtenerUsuarios();
+    response.send(lista);
 });
 
 app.get("/usuarioActivo/:nick", function (request, response) {
     let res = sistema.usuarioActivo(request.params.nick);
     response.send(res);
 });
+
+app.get("/cerrarSesion",haIniciado,function(request,response){
+    let nick=request.user.nick;
+    request.logout();
+    response.redirect("/");
+    if (nick){
+        sistema.eliminarUsuario(nick);
+    }
+})
 
 app.get("/numeroUsuarios", function (request, response) {
     let res = sistema.numeroUsuarios();
@@ -77,6 +93,11 @@ app.get(
     "/google/callback",
     passport.authenticate("google", {failureRedirect: "/fallo"}),
     function (req, res) {
+        console.log("Google callback exitoso");
+        console.log("Usuario autenticado:", req.user ? "Sí" : "No");
+        if (req.user) {
+            console.log("Email del usuario:", req.user.emails ? req.user.emails[0].value : "No disponible");
+        }
         res.redirect("/good");
     }
 );
@@ -94,10 +115,33 @@ app.get("/good", function (request, response) {
 */
 
 app.get("/good", function (request, response) {
+    // Verificar que el usuario existe y tiene emails
+    if (!request.user || !request.user.emails || request.user.emails.length === 0) {
+        console.error("Error: Usuario no autenticado o sin email");
+        return response.redirect("/?error=auth_failed");
+    }
+
     let email = request.user.emails[0].value;
+    // Intentar obtener el nombre del perfil de Google
+    let displayName = email; // Por defecto usar el email
+    if (request.user.displayName) {
+        displayName = request.user.displayName;
+    } else if (request.user.name && request.user.name.givenName) {
+        displayName = request.user.name.givenName;
+        if (request.user.name.familyName) {
+            displayName += ' ' + request.user.name.familyName;
+        }
+    }
+
     sistema.usuarioGoogle({"email": email}, function (obj) {
-        response.cookie("nick", obj.email);
-        response.redirect("/");
+        if (obj && obj.email) {
+            response.cookie("nick", obj.email);
+            response.cookie("userName", displayName);
+            response.redirect("/");
+        } else {
+            console.error("Error al crear/buscar usuario en la base de datos");
+            response.redirect("/?error=db_error");
+        }
     });
 });
 
@@ -120,7 +164,11 @@ app.get("/confirmarUsuario/:email/:key", function (request, response) {
 })
 
 app.get("/ok", function (request, response) {
-    response.send({nick: request.user.email})
+    response.send({
+        nick: request.user.email,
+        nombre: request.user.nombre,
+        apellidos: request.user.apellidos
+    })
 });
 
 
@@ -140,22 +188,37 @@ app.post("/registrarUsuario", function (request, response) {
     });
 });
 
-app.post('/loginUsuario', passport.authenticate("local", {
-        failureRedirect: " /fallo",
-        successRedirect: "/ok"
-    })
-);
-
-/*
-app.post("/loginUsuario", function (request, response) {
-    sistema.loginUsuario(request.body, function (res) {
-        if (res && res.email) {
-            response.send({"nick": res.email, "nombre": res.nombre});
-        } else {
-            response.send({"nick": -1});
+app.post('/loginUsuario', function(request, response, next) {
+    passport.authenticate('local', function(err, user, info) {
+        if (err) {
+            return response.send({"nick": -1});
         }
-    });
-});*/
+        if (!user) {
+            return response.send({"nick": -1});
+        }
+        request.logIn(user, function(err) {
+            if (err) {
+                return response.send({"nick": -1});
+            }
+            // Construir el nombre completo
+            let nombreCompleto = '';
+            if (user.nombre && user.apellidos) {
+                nombreCompleto = user.nombre + ' ' + user.apellidos;
+            } else if (user.nombre) {
+                nombreCompleto = user.nombre;
+            } else {
+                nombreCompleto = user.email;
+            }
+
+            return response.send({
+                "nick": user.email,
+                "nombre": user.nombre,
+                "apellidos": user.apellidos,
+                "nombreCompleto": nombreCompleto
+            });
+        });
+    })(request, response, next);
+});
 
 app.post("/cerrarSesion", function (request, response) {
     let nick = request.body.nick;
@@ -167,7 +230,10 @@ app.post("/cerrarSesion", function (request, response) {
     response.send({"resultado": "sesion_cerrada", "nick": nick});
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`App está escuchando en el puerto ${PORT}`);
     console.log("Ctrl+C para salir");
+}).on('error', (err) => {
+    console.error('Error al iniciar el servidor:', err);
+    process.exit(1);
 });

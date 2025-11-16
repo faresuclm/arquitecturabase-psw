@@ -110,6 +110,56 @@
             margin: 25px 0;
             color: #adb5bd;
             font-size: 13px;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: #e8ecef;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .btn-google {
+            width: 100%;
+            background-color: white;
+            border: 2px solid #e8ecef;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #5a6c7d;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            text-decoration: none;
+            margin-top: 0px;
+        }
+
+        .btn-google:hover {
+            background-color: #f8f9fa;
+            border-color: #d1d5db;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            text-decoration: none;
+            color: #5a6c7d;
+        }
+
+        .btn-google img {
+            height: 48px;
+            width: auto;
         }
     </style>
 </head>
@@ -129,12 +179,22 @@
                        placeholder="••••••••" id="pwdLogin">
             </div>
             <button type="submit" id="btnLogin" class="btn btn-primary">Iniciar Sesión</button>
-            <div class="divider">
-                <button type="button" id="btnMostrarRegistro" class="btn btn-link">
-                    ¿No tienes cuenta? Regístrate aquí
-                </button>
-            </div>
         </form>
+
+        <div class="divider">
+            <span>o continúa con</span>
+        </div>
+
+        <a href="/auth/google" class="btn-google">
+            <img src="/cliente/img/web_neutral_rd_SI@2x.png" alt="Google">
+
+        </a>
+
+        <div class="divider" style="margin-top: 15px;">
+            <button type="button" id="btnMostrarRegistro" class="btn btn-link">
+                ¿No tienes cuenta? Regístrate aquí
+            </button>
+        </div>
     </div>
 </div>
 </body>

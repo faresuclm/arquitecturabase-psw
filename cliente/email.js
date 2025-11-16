@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const url = "http://localhost:3000/";
+const url = process.env.URL_DEPLOYMENT;
 //const url="tu-url-de-despliegue";
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -18,7 +18,7 @@ module.exports.enviarEmail = async function (direccion, key, men) {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f7fa; border-radius: 10px;">
                 <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                    <h2 style="color: #2c3e50; text-align: center; margin-bottom: 20px;">¡Bienvenido a Sistema!</h2>
+                    <h2 style="color: #2c3e50; text-align: center; margin-bottom: 20px;">¡Bienvenido a BaseArch</h2>
                     <p style="color: #5a6c7d; font-size: 16px; line-height: 1.6;">
                         Gracias por registrarte. Para completar tu registro, por favor confirma tu correo electrónico haciendo clic en el botón de abajo:
                     </p>

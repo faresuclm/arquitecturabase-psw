@@ -63,8 +63,19 @@ function ClienteRest() {
                 if (data.nick && data.nick != -1) {
                     console.log("Usuario " + data.nick + " ha iniciado sesión");
                     $.cookie("nick", data.nick);
-                    // Guardar el nombre para mostrarlo
-                    let displayName = data.nombre || data.nick;
+
+                    // Construir el nombre completo para mostrar
+                    let displayName = '';
+                    if (data.nombreCompleto) {
+                        displayName = data.nombreCompleto;
+                    } else if (data.nombre && data.apellidos) {
+                        displayName = data.nombre + ' ' + data.apellidos;
+                    } else if (data.nombre) {
+                        displayName = data.nombre;
+                    } else {
+                        displayName = data.nick;
+                    }
+
                     $.cookie("userName", displayName);
                     cw.mostrarMensajeExito("¡Inicio de sesión exitoso! Bienvenido de nuevo, " + displayName);
                     setTimeout(function() {
@@ -72,7 +83,7 @@ function ClienteRest() {
                         // Mostrar el navegador y ocultar el contenedor
                         $("#mainNav").show();
                         $("#mainContainer").hide();
-                        cw.mostrarMensaje("Bienvenido al sistema, " + displayName);
+                        cw.mostrarMensaje("Bienvenido " + displayName);
                     }, 2000);
                 } else {
                     console.log("Credenciales incorrectas o correo no verificado");

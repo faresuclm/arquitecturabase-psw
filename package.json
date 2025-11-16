@@ -14,10 +14,14 @@
     "start": "node index.js",
     "test": "jasmine servidor/modeloSpec.js"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "ansi-regex": "^6.2.2",
     "ansi-styles": "^6.2.3",
     "balanced-match": "^1.0.2",
+    "bcrypt": "^6.0.0",
     "body-parser": "^2.2.0",
     "brace-expansion": "^2.0.2",
     "color-convert": "^2.0.1",
@@ -60,6 +64,7 @@
     "wrap-ansi-cjs": "^7.0.0"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "jasmine": "^5.12.0"
   }
 }
