@@ -2,7 +2,9 @@ const nodemailer = require('nodemailer');
 const url = process.env.URL_DEPLOYMENT;
 //const url="tu-url-de-despliegue";
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    secure: false, // true para 465, false para otros puertos
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD,
@@ -11,7 +13,7 @@ const transporter = nodemailer.createTransport({
 //send();
 module.exports.enviarEmail = async function (direccion, key, men) {
     const result = await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: process.env.EMAIL_FROM,
         to: direccion,
         subject: men,
         text: 'Pulsa aquí para confirmar tu cuenta',

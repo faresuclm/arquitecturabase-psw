@@ -4,10 +4,16 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
     
     steps:
       - name: Checkout code
@@ -20,9 +26,11 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Configure Docker
-        run: gcloud auth configure-docker
+        run: gcloud auth configure-docker gcr.io
 
       - name: Build and Push Docker image
         run: |
@@ -36,4 +44,10 @@ jobs:
             --platform managed \
             --region us-central1 \
             --allow-unauthenticated \
+            --set-env-vars="EMAIL_USER=${{ secrets.EMAIL_USER }}" \
+            --set-env-vars="EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}" \
+            --set-env-vars="EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
+            --set-env-vars="MONGODB_URI=${{ secrets.MONGODB_URI }}" \
+            --set-env-vars="GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" \
+            --set-env-vars="GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
             --project=${{ secrets.GCP_PROJECT_ID }}
