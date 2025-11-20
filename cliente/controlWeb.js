@@ -30,8 +30,18 @@ function ControlWeb() {
                     return;
                 }
 
+                // Agregar efecto de loading
+                $(this).addClass('loading');
+                $(this).prop('disabled', true);
+
                 rest.registrarUsuario(email, pwd, nombre, apellidos);
                 console.log(email + " " + pwd);
+
+                // Remover loading después de 2 segundos (ajustar según respuesta del servidor)
+                setTimeout(() => {
+                    $(this).removeClass('loading');
+                    $(this).prop('disabled', false);
+                }, 2000);
             });
 
             $("#btnMostrarLogin").on("click", function (e) {
@@ -63,9 +73,19 @@ function ControlWeb() {
                     return;
                 }
 
+                // Agregar efecto de loading
+                $(this).addClass('loading');
+                $(this).prop('disabled', true);
+
                 // Enviar datos al servidor
                 rest.loginUsuario({"email": email, "password": pwd});
                 console.log(email + " login attempt");
+
+                // Remover loading después de 2 segundos (ajustar según respuesta del servidor)
+                setTimeout(() => {
+                    $(this).removeClass('loading');
+                    $(this).prop('disabled', false);
+                }, 2000);
             });
 
             $("#btnMostrarRegistro").on("click", function (e) {
