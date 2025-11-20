@@ -45,5 +45,5 @@ jobs:
             --region europe-west1 \
             --timeout=300 \
             --allow-unauthenticated \
-            --set-env-vars="MONGODB_USER=${{ secrets.MONGODB_USER }},MONGODB_PASSWORD=${{ secrets.MONGODB_PASSWORD }},MONGODB_URL=${{ secrets.MONGODB_URL }},EMAIL_USER=${{ secrets.EMAIL_USER }},EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }},EMAIL_FROM=${{ secrets.EMAIL_FROM }},GCLIENT_ID=${{ secrets.GCLIENT_ID }},GCLIENT_SECRET=${{ secrets.GCLIENT_SECRET }},URL_DEPLOYMENT=${{ secrets.URL_DEPLOYMENT }},NODE_ENV=production" \
+            --set-env-vars="MONGODB_USER=${{ secrets.MONGODB_USER }},MONGODB_PASSWORD=${{ secrets.MONGODB_PASSWORD }},APP_NAME=${{ secrets.APP_NAME }},MONGODB_URL=${{ secrets.MONGODB_URL }},EMAIL_USER=${{ secrets.EMAIL_USER }},EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }},EMAIL_FROM=${{ secrets.EMAIL_FROM }},GCLIENT_ID=${{ secrets.GCLIENT_ID }},GCLIENT_SECRET=${{ secrets.GCLIENT_SECRET }},URL_DEPLOYMENT=${{ secrets.URL_DEPLOYMENT }},NODE_ENV=production" \
             --project=${{ secrets.GCP_PROJECT_ID }}
