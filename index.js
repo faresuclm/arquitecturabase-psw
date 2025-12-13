@@ -1,4 +1,4 @@
-
+require('dotenv').config();
 const bodyParser = require("body-parser");
 const fs = require("fs");
 const express = require("express");
@@ -41,6 +41,14 @@ app.use(passport.session());
 // ------------------------ GET -----------------------------
 app.get("/fallo", function (request, response) {
     response.send({nick: "nook"});
+});
+
+// Endpoint para obtener configuración del cliente
+app.get("/api/config", function (request, response) {
+    response.json({
+        GCLIENT_ID: process.env.GCLIENT_ID,
+        GCALLBACK_URI: process.env.GCALLBACK_URI
+    });
 });
 
 app.get("/", function (request, response) {
