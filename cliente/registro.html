@@ -172,6 +172,59 @@
             color: var(--text-primary);
         }
 
+        /* Input con icono de contraseña */
+        .position-relative .form-control {
+            padding-right: 80px !important; /* Espacio para ambos iconos */
+        }
+
+        /* Icono de mostrar/ocultar contraseña */
+        .toggle-password {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 16px;
+            color: #64748b;
+            z-index: 10;
+            transition: color 0.2s;
+            user-select: none;
+            padding: 5px;
+        }
+
+        .toggle-password:hover {
+            color: var(--primary-color);
+        }
+
+        /* Icono de validación (check/error) - posicionado antes del toggle password */
+        .position-relative .form-control.is-valid,
+        .position-relative .form-control.is-invalid {
+            background-image: none !important; /* Eliminar el icono por defecto de Bootstrap */
+        }
+
+        /* Iconos de validación personalizados */
+        .position-relative::after {
+            position: absolute;
+            right: 48px; /* Posicionado a la izquierda del icono de contraseña */
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            font-size: 14px;
+            z-index: 9;
+            pointer-events: none;
+        }
+
+        .position-relative.has-validation-icon .form-control.is-valid ~ ::after {
+            content: '\f058'; /* check-circle */
+            color: #10b981;
+        }
+
+        .position-relative.has-validation-icon .form-control.is-invalid ~ ::after {
+            content: '\f06a'; /* exclamation-circle */
+            color: #dc3545;
+        }
+
         .form-control:focus {
             border-color: var(--primary-color);
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15); /* Sombra azul */
@@ -193,10 +246,34 @@
             box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
         }
 
-        .btn-primary-custom:hover {
+        .btn-primary-custom:hover:not(:disabled) {
             background: var(--primary-dark);
             transform: translateY(-1px);
             box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary-custom:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .form-control.is-invalid {
+            border-color: #dc3545;
+        }
+
+        .form-control.is-valid {
+            border-color: #10b981;
+        }
+
+        /* Password strength indicator */
+        .password-strength .progress-bar {
+            transition: width 0.3s ease;
+        }
+
+        .password-strength .strength-text {
+            display: block;
+            margin-top: 4px;
+            font-weight: 500;
         }
 
         /* Botón Google */
@@ -215,12 +292,19 @@
             text-decoration: none;
             transition: background 0.2s;
             gap: 12px;
+            position: relative;
         }
 
-        .btn-google:hover {
+        .btn-google:hover:not(.disabled) {
             background: var(--primary-light);
             color: var(--text-primary);
             text-decoration: none;
+        }
+
+        .btn-google.disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            pointer-events: none;
         }
 
         .divider {
@@ -334,45 +418,71 @@
                 <p class="auth-subtitle">Configura tu perfil de estudiante en segundos.</p>
             </div>
 
-            <form>
+            <form id="registroForm" novalidate>
                 <div class="form-row">
                     <div class="form-group col-md-6">
                         <label for="nombre">Nombre</label>
-                        <input type="text" class="form-control" id="nombre" placeholder="Ada">
+                        <input type="text" class="form-control" id="nombre" placeholder="Ada" maxlength="50">
+                        <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                            El nombre no puede contener números
+                        </div>
                     </div>
                     <div class="form-group col-md-6">
                         <label for="apellidos">Apellidos</label>
-                        <input type="text" class="form-control" id="apellidos" placeholder="Lovelace">
+                        <input type="text" class="form-control" id="apellidos" placeholder="Lovelace" maxlength="100">
+                        <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                            Los apellidos no pueden contener números
+                        </div>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="email">Correo Electrónico <span class="text-danger">*</span></label>
-                    <input type="email" class="form-control" id="email" placeholder="ada@alu.uclm.es" required>
+                    <input type="email" class="form-control" id="email" placeholder="ada@alu.uclm.es" required autocomplete="email">
+                    <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                        Por favor, introduce un correo válido
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label for="pwd">Contraseña <span class="text-danger">*</span></label>
                     <div class="position-relative">
-                        <input type="password" class="form-control" id="pwd" placeholder="Mínimo 8 caracteres" required>
-                        <i class="fas fa-eye text-secondary" id="togglePasswordReg"
-                           style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px;"></i>
+                        <input type="password" class="form-control" id="pwd" placeholder="Mínimo 8 caracteres" required minlength="8" autocomplete="new-password">
+                        <span class="validation-icon" id="pwdValidationIcon" style="position: absolute; right: 48px; top: 50%; transform: translateY(-50%); display: none; z-index: 9; pointer-events: none;">
+                            <i class="fas" style="font-size: 14px;"></i>
+                        </span>
+                        <i class="fas fa-eye toggle-password" id="togglePasswordReg" title="Mostrar contraseña"></i>
+                    </div>
+                    <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                        La contraseña debe tener al menos 8 caracteres
                     </div>
                     <small class="text-muted mt-1" style="font-size: 12px;">Se recomienda usar caracteres especiales
                         (ej: #, !, $)</small>
+                    <div class="password-strength mt-2" id="passwordStrength" style="display: none;">
+                        <div class="progress" style="height: 5px;">
+                            <div class="progress-bar" role="progressbar" style="width: 0%;"></div>
+                        </div>
+                        <small class="strength-text" style="font-size: 11px;"></small>
+                    </div>
                 </div>
 
                 <button type="submit" id="btnRegistro" class="btn-primary-custom">
-                    Crear Cuenta
+                    <span class="btn-text">Crear Cuenta</span>
+                    <span class="btn-spinner" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i> Creando cuenta...
+                    </span>
                 </button>
             </form>
 
             <div class="divider"><span>O REGÍSTRATE CON</span></div>
 
-            <a href="/auth/google" class="btn-google">
+            <a href="/auth/google/registro" class="btn-google" id="btnGoogleRegistro">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G"
-                     style="width:20px;">
-                Google
+                     style="width:20px;" class="google-icon">
+                <span class="google-text">Google</span>
+                <span class="google-spinner" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i> Conectando...
+                </span>
             </a>
 
             <div class="text-center mt-4" style="font-size: 14px; color: var(--text-secondary);">
@@ -382,6 +492,70 @@
     </div>
 </div>
 
+<!-- Modal para establecer contraseña después de Google OAuth -->
+<div class="modal fade" id="modalPasswordGoogleRegistro" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding: 24px;">
+                <h5 class="modal-title" style="font-weight: 700; color: var(--text-primary);">
+                    <i class="fas fa-key text-primary mr-2"></i> Completa tu Registro
+                </h5>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <div class="alert alert-success" style="border-radius: 8px; border: none; background: #d1fae5;">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    <strong>✅ Autenticado con Google</strong> - Solo falta definir tu contraseña
+                </div>
+
+                <div id="googleUserInfoReg" class="mb-3 p-3" style="background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="font-size: 14px; color: var(--text-secondary);">
+                        <strong style="color: var(--text-primary);">Email:</strong>
+                        <span id="googleEmailReg"></span>
+                    </div>
+                    <div style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;">
+                        <strong style="color: var(--text-primary);">Nombre:</strong>
+                        <span id="googleNameReg"></span>
+                    </div>
+                </div>
+
+                <form id="formPasswordGoogleReg">
+                    <div class="form-group">
+                        <label for="googlePasswordReg" style="font-weight: 600; color: var(--text-primary);">
+                            Contraseña <span class="text-danger">*</span>
+                        </label>
+                        <div class="position-relative">
+                            <input type="password" class="form-control" id="googlePasswordReg"
+                                   placeholder="Mínimo 8 caracteres" required minlength="8">
+                            <span class="validation-icon" id="googlePwdRegValidationIcon" style="position: absolute; right: 48px; top: 50%; transform: translateY(-50%); display: none; z-index: 9; pointer-events: none;">
+                                <i class="fas" style="font-size: 14px;"></i>
+                            </span>
+                            <i class="fas fa-eye toggle-password" id="toggleGooglePasswordReg" title="Mostrar contraseña"></i>
+                        </div>
+                        <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                            La contraseña debe tener al menos 8 caracteres
+                        </div>
+                        <div class="password-strength mt-2" id="googlePasswordStrengthReg" style="display: none;">
+                            <div class="progress" style="height: 5px; border-radius: 3px;">
+                                <div class="progress-bar" role="progressbar" style="width: 0%;"></div>
+                            </div>
+                            <small class="strength-text" style="font-size: 11px; display: block; margin-top: 4px;"></small>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btnConfirmPasswordGoogleReg" class="btn btn-primary btn-block"
+                            style="height: 44px; border-radius: 8px; font-weight: 600;">
+                        <span class="btn-text">Confirmar y Continuar</span>
+                        <span class="btn-spinner" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i> Procesando...
+                        </span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts desactivados cuando se carga dinámicamente - Los eventos se manejan desde controlWeb.js
 <script>
     // Redirigir a la página principal si se accede directamente a registro.html
     if (window.location.pathname.includes('/cliente/registro.html')) {
@@ -395,6 +569,28 @@
         this.classList.toggle('fa-eye');
         this.classList.toggle('fa-eye-slash');
     });
+
+    // Prevenir doble clic en el botón de Google
+    document.getElementById('btnGoogleRegistro').addEventListener('click', function (e) {
+        if (this.classList.contains('disabled')) {
+            e.preventDefault();
+            return false;
+        }
+
+        this.classList.add('disabled');
+        this.querySelector('.google-icon').style.display = 'none';
+        this.querySelector('.google-text').style.display = 'none';
+        this.querySelector('.google-spinner').style.display = 'inline';
+
+        // Timeout de seguridad por si algo falla
+        setTimeout(() => {
+            this.classList.remove('disabled');
+            this.querySelector('.google-icon').style.display = 'inline';
+            this.querySelector('.google-text').style.display = 'inline';
+            this.querySelector('.google-spinner').style.display = 'none';
+        }, 10000);
+    });
 </script>
+-->
 </body>
 </html>

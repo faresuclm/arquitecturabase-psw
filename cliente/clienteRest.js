@@ -1,6 +1,6 @@
 function ClienteRest() {
 
-    this.registrarUsuario = function (email, password, nombre, apellidos) {
+    this.registrarUsuario = function (email, password, nombre, apellidos, callback) {
         let userData = {
             "email": email,
             "password": password
@@ -19,6 +19,9 @@ function ClienteRest() {
             url: '/registrarUsuario',
             data: JSON.stringify(userData),
             success: function (data) {
+                // Restaurar el botón
+                if (callback) callback();
+
                 if (data.nick != -1) {
                     console.log("Usuario " + data.nick + " ha sido registrado");
                     let displayName = nombre || data.nick;
@@ -36,32 +39,44 @@ function ClienteRest() {
                 }
             },
             error: function (xhr, textStatus, errorThrown) {
-                console.log("Status: " + textStatus);
-                console.log("Error: " + errorThrown);
+                // Restaurar el botón en caso de error
+                if (callback) callback();
+
+                console.error("❌ Error en login:");
+                console.error("  Status HTTP:", xhr.status);
+                console.error("  Mensaje:", textStatus);
                 let mensajeError = "Error al registrar usuario. ";
                 if (xhr.status === 0) {
-                    mensajeError += "No se pudo conectar con el servidor.";
+                    mensajeError += "No se pudo conectar con el servidor. Verifica tu conexión a internet.";
                 } else if (xhr.status === 400) {
-                    mensajeError += "Datos inválidos.";
+                    mensajeError += "Datos inválidos. Verifica que el email sea correcto.";
+                } else if (xhr.status === 409) {
+                    mensajeError += "El email ya está registrado.";
                 } else if (xhr.status === 500) {
-                    mensajeError += "Error del servidor.";
+                    mensajeError += "Error del servidor. Intenta de nuevo más tarde.";
                 } else {
-                    mensajeError += "Error desconocido: " + textStatus;
+                    mensajeError += "Por favor, intenta de nuevo.";
                 }
                 cw.mostrarMensajeError(mensajeError);
             },
-            contentType: 'application/json'
+            contentType: 'application/json',
+            timeout: 10000 // 10 segundos de timeout
         });
     }
 
-    this.loginUsuario = function (usr) {
+    this.loginUsuario = function (usr, callback) {
+        console.log("📤 Enviando petición de login para:", usr.email);
         $.ajax({
             type: 'POST',
             url: '/loginUsuario',
             data: JSON.stringify(usr),
+            contentType: 'application/json',
+            dataType: 'json',
             success: function (data) {
+                console.log("📥 Respuesta recibida del servidor:", data);
+
                 if (data.nick && data.nick != -1) {
-                    console.log("Usuario " + data.nick + " ha iniciado sesión");
+                    console.log("✅ Usuario " + data.nick + " ha iniciado sesión");
                     $.cookie("nick", data.nick);
 
                     // Construir el nombre completo para mostrar
@@ -77,37 +92,61 @@ function ClienteRest() {
                     }
 
                     $.cookie("userName", displayName);
-                    cw.mostrarMensajeExito("¡Inicio de sesión exitoso! Bienvenido de nuevo, " + displayName);
+                    console.log("✅ Cookies establecidas:", {nick: data.nick, userName: displayName});
+
+                    console.log("🔄 Iniciando redirección inmediata...");
+
+                    // Limpiar formularios
+                    cw.limpiar();
+
+                    // Mostrar el navegador y ocultar el contenedor
+                    $("#mainNav").show();
+                    $("#mainContainer").hide();
+
+                    console.log("✅ Redirección completada");
+
+                    // Mostrar mensaje de bienvenida
+                    cw.mostrarMensaje("Bienvenido " + displayName);
+
+                    // Restaurar el botón AL FINAL con un pequeño delay para asegurar que la UI se actualice
                     setTimeout(function() {
-                        cw.limpiar();
-                        // Mostrar el navegador y ocultar el contenedor
-                        $("#mainNav").show();
-                        $("#mainContainer").hide();
-                        cw.mostrarMensaje("Bienvenido " + displayName);
-                    }, 2000);
+                        if (callback) callback();
+                    }, 100);
                 } else {
-                    console.log("Credenciales incorrectas o correo no verificado");
+                    console.warn("⚠️ Login rechazado - nick:", data.nick);
+                    // Restaurar botón inmediatamente si falla
+                    if (callback) callback();
                     cw.mostrarMensajeError("No se puede iniciar sesión. Verifica que tus credenciales sean correctas y que hayas confirmado tu correo electrónico.");
                 }
             },
             error: function (xhr, textStatus, errorThrown) {
-                console.log("Status: " + textStatus);
-                console.log("Error: " + errorThrown);
+                // Restaurar el botón en caso de error
+                if (callback) callback();
+
+                console.error("❌ Error en login - Status:", textStatus);
+                console.error("❌ Error:", errorThrown);
+                console.error("❌ HTTP Status:", xhr.status);
+                console.error("❌ Response:", xhr.responseText);
                 let mensajeError = "Error al iniciar sesión. ";
                 if (xhr.status === 0) {
-                    mensajeError += "No se pudo conectar con el servidor.";
+                    mensajeError += "No se pudo conectar con el servidor. Verifica tu conexión a internet.";
                 } else if (xhr.status === 401) {
-                    mensajeError += "Credenciales inválidas o correo no verificado.";
+                    mensajeError += "Credenciales inválidas. Verifica tu correo y contraseña.";
+                } else if (xhr.status === 403) {
+                    mensajeError += "Tu cuenta no ha sido verificada. Por favor, verifica tu correo electrónico.";
                 } else if (xhr.status === 400) {
-                    mensajeError += "Datos inválidos.";
+                    mensajeError += "Datos inválidos. Por favor, verifica tu información.";
+                } else if (xhr.status === 404) {
+                    mensajeError += "No existe una cuenta con este correo electrónico. Por favor, regístrate primero.";
                 } else if (xhr.status === 500) {
-                    mensajeError += "Error del servidor.";
+                    mensajeError += "Error del servidor. Intenta de nuevo más tarde.";
                 } else {
-                    mensajeError += "Error desconocido: " + textStatus;
+                    mensajeError += "Por favor, intenta de nuevo.";
                 }
                 cw.mostrarMensajeError(mensajeError);
             },
-            contentType: 'application/json'
+            contentType: 'application/json',
+            timeout: 10000 // 10 segundos de timeout
         });
     }
 

@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cliente</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
-            integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
-            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"
-            integrity="sha512-3j3VU6WC5rPQB4Ld1jnLV7Kd5xr+cq9avvhwqzbH/taCRNURoeEpoPBK9pDyeukwSxwRPJ8fDgvYXd6SkaZ2TA=="
-            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        integrity="sha512-3j3VU6WC5rPQB4Ld1jnLV7Kd5xr+cq9avvhwqzbH/taCRNURoeEpoPBK9pDyeukwSxwRPJ8fDgvYXd6SkaZ2TA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="/cliente/clienteRest.js"></script>
     <script src="/cliente/controlWeb.js"></script>
     <!-- Latest compiled and minified CSS -->
@@ -95,7 +95,7 @@
             max-width: none;
         }
 
-        #msg > div {
+        #msg>div {
             pointer-events: auto;
         }
     </style>
@@ -104,31 +104,29 @@
 
 <body>
 
-<div id="g_id_onload"
-     data-client_id="49772563360-lrofhrl6j0ctpaikvbr4g6hfopp2abs5.apps.googleusercontent.com"
-     data-login_uri="https://arquitecturabase-psw-49772563360.europe-west1.run.app/oneTap/callback"
-     data-skip_prompt_cookie="nick"
-></div>
+    <div id="g_id_onload" data-client_id="49772563360-lrofhrl6j0ctpaikvbr4g6hfopp2abs5.apps.googleusercontent.com"
+        data-login_uri="https://arquitecturabase-psw-49772563360.europe-west1.run.app/oneTap/callback"
+        data-skip_prompt_cookie="nick"></div>
 
-<!-- Contenedor de mensajes (posición fija en la parte superior) -->
-<div id="msg"></div>
+    <!-- Contenedor de mensajes (posición fija en la parte superior) -->
+    <div id="msg"></div>
 
-<nav class="navbar navbar-expand-sm" id="mainNav" style="display: none;">
-    <!-- Brand/logo -->
-    <a class="navbar-brand" href="#">esiiChat</a>
+    <nav class="navbar navbar-expand-sm" id="mainNav" style="display: none;">
+        <!-- Brand/logo -->
+        <a class="navbar-brand" href="#">esiiChat</a>
 
-    <!-- Links -->
-    <ul class="navbar-nav ml-auto">
-        <li class="nav-item">
-            <a class="nav-link" href="#" id="btnSalir" style="cursor: pointer;">Cerrar Sesión</a>
-        </li>
-    </ul>
-</nav>
+        <!-- Links -->
+        <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="btnSalir" style="cursor: pointer;">Cerrar Sesión</a>
+            </li>
+        </ul>
+    </nav>
 
-<div class="container" id="mainContainer">
-    <div id="au"></div>
-    <div id="registro" style="display: flex; justify-content: center; align-items: center;"></div>
-</div>
+    <div class="container" id="mainContainer">
+        <div id="au"></div>
+        <div id="registro" style="display: flex; justify-content: center; align-items: center;"></div>
+    </div>
 </body>
 <script defer>
     cw = new ControlWeb();

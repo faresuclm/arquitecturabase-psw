@@ -12,8 +12,45 @@ function Sistema() {
         console.log("Conectado a Mongo Atlas");
     });
 
+    this.verificarUsuarioGoogle = function (email, callback) {
+        console.log("🔍 Verificando si usuario existe:", email);
+        this.cad.buscarUsuario({"email": email}, function (usr) {
+            if (usr) {
+                console.log("✅ Usuario encontrado en BD");
+                callback(usr);
+            } else {
+                console.log("⚠️ Usuario NO existe en BD");
+                callback(null);
+            }
+        });
+    }
+
+    this.buscarUsuarioPorEmail = function (email, callback) {
+        this.cad.buscarUsuario({"email": email}, function (usr) {
+            callback(usr);
+        });
+    }
+
     this.usuarioGoogle = function (usr, callback) {
+        // Asegurarse de que los usuarios de Google están confirmados por defecto
+        if (!usr.confirmada) {
+            usr.confirmada = true;
+        }
+        // Marcar como usuario de Google
+        if (!usr.provider) {
+            usr.provider = 'google';
+        }
+        // Fecha de registro
+        if (!usr.fechaRegistro) {
+            usr.fechaRegistro = new Date();
+        }
+
         this.cad.buscarOCrearUsuario(usr, function (obj) {
+            if (obj && obj.email) {
+                console.log("✅ Usuario Google autenticado/creado:", obj.email, "| Provider:", obj.provider || 'google');
+            } else {
+                console.error("❌ Error al buscar/crear usuario de Google");
+            }
             callback(obj);
         });
     };
@@ -67,32 +104,70 @@ function Sistema() {
 
     this.registrarUsuario = function (obj, callback) {
         let modelo = this;
+
+        // Validaciones básicas
+        if (!obj.email || !obj.password) {
+            console.error("Error: email y contraseña son obligatorios");
+            return callback({"email": -1, "error": "Email y contraseña son obligatorios"});
+        }
+
+        if (obj.password.length < 8) {
+            console.error("Error: contraseña muy corta");
+            return callback({"email": -1, "error": "La contraseña debe tener al menos 8 caracteres"});
+        }
+
         if (!obj.nick) {
             obj.nick = obj.email;
         }
-        this.cad.buscarUsuario(obj, function (usr) {
+
+        // Buscar si el usuario ya existe
+        this.cad.buscarUsuario({"email": obj.email}, function (usr) {
             if (!usr) {
                 // El usuario no existe, luego lo puedo registrar
                 // Cifrar la contraseña con bcrypt antes de guardarla
                 bcrypt.hash(obj.password, SALT_ROUNDS, function(err, hash) {
                     if (err) {
                         console.error("Error al cifrar la contraseña:", err);
-                        callback({"email": -1});
+                        callback({"email": -1, "error": "Error al procesar la contraseña"});
                         return;
                     }
 
                     // Reemplazar la contraseña en texto plano por el hash
                     obj.password = hash;
                     obj.key = Date.now().toString();
-                    obj.confirmada = false;
+
+                    // Solo establecer confirmada como false si no está definido (registro normal)
+                    // Si viene de Google, ya tiene confirmada: true
+                    if (obj.confirmada === undefined) {
+                        obj.confirmada = false;
+                    }
+
+                    if (!obj.fechaRegistro) {
+                        obj.fechaRegistro = new Date();
+                    }
+
+                    console.log("📝 Registrando usuario:", obj.email, "| Provider:", obj.provider || 'local', "| Confirmada:", obj.confirmada);
 
                     modelo.cad.insertarUsuario(obj, function (res) {
+                        if (res && res.email) {
+                            console.log("✅ Usuario registrado exitosamente:", res.email);
+
+                            // Solo enviar email de verificación si NO está confirmado (registro normal, no Google)
+                            if (obj.confirmada === false) {
+                                console.log("📧 Enviando email de verificación a:", obj.email);
+                                correo.enviarEmail(obj.email, obj.key, "Confirmar cuenta");
+                            } else {
+                                console.log("✅ Usuario pre-verificado (Google), no se envía email");
+                            }
+                        } else {
+                            console.error("❌ Error al registrar usuario en base de datos");
+                        }
                         callback(res);
                     });
-                    correo.enviarEmail(obj.email, obj.key, "Confirmar cuenta");
                 });
             } else {
-                callback({"email": -1});
+                console.log("El usuario ya existe:", obj.email);
+                callback({"email": -1, "error": "El email ya está registrado"});
             }
         });
     }
@@ -114,29 +189,61 @@ function Sistema() {
     }*/
 
     this.loginUsuario = function (obj, callback) {
-        this.cad.buscarUsuario({"email": obj.email, "confirmada": true}, function (usr) {
-            if (usr) {
-                // Usuario encontrado y confirmado, ahora comparar la contraseña
-                bcrypt.compare(obj.password, usr.password, function(err, result) {
-                    if (err) {
-                        console.error("Error al comparar contraseñas:", err);
-                        callback({"email": -1});
-                        return;
-                    }
+        // Validaciones básicas
+        if (!obj.email || !obj.password) {
+            console.error("Error: email y contraseña son obligatorios");
+            return callback({"email": -1, "error": "Email y contraseña son obligatorios"});
+        }
 
-                    if (result) {
-                        // Contraseña correcta
-                        callback(usr);
-                    } else {
-                        // Contraseña incorrecta
-                        console.log("Contraseña incorrecta para el usuario:", usr.email);
-                        callback({"email": -1});
-                    }
-                });
-            } else {
-                // Usuario no encontrado o no confirmado
-                callback({"email": -1});
+        // Primero buscar el usuario sin filtrar por confirmada
+        this.cad.buscarUsuario({"email": obj.email}, function (usr) {
+            if (!usr) {
+                // Usuario no encontrado
+                console.log("Usuario no encontrado:", obj.email);
+                return callback({"email": -1, "error": "Usuario no encontrado"});
             }
+
+            // Verificar si es un usuario de Google sin contraseña
+            if (usr.provider === 'google' && !usr.password) {
+                console.log("Usuario de Google intentando login con contraseña:", obj.email);
+                return callback({
+                    "email": -1,
+                    "error": "Esta cuenta fue creada con Google. Por favor, inicia sesión usando el botón de Google."
+                });
+            }
+
+            // Verificar si el usuario ha confirmado su cuenta
+            if (usr.confirmada === false) {
+                console.log("Usuario no ha confirmado su cuenta:", obj.email);
+                return callback({"email": -1, "confirmada": false, "error": "Cuenta no verificada"});
+            }
+
+            // Verificar que el usuario tiene contraseña
+            if (!usr.password) {
+                console.error("Usuario sin contraseña:", obj.email);
+                return callback({
+                    "email": -1,
+                    "error": "Cuenta sin contraseña configurada. Contacta con el administrador."
+                });
+            }
+
+            // Usuario encontrado y confirmado, ahora comparar la contraseña
+            bcrypt.compare(obj.password, usr.password, function(err, result) {
+                if (err) {
+                    console.error("Error al comparar contraseñas:", err);
+                    return callback({"email": -1, "error": "Error al verificar contraseña"});
+                }
+
+                if (result) {
+                    // Contraseña correcta
+                    console.log("Login exitoso para:", usr.email);
+                    callback(usr);
+                } else {
+                    // Contraseña incorrecta
+                    console.log("Contraseña incorrecta para el usuario:", usr.email);
+                    callback({"email": -1, "error": "Contraseña incorrecta"});
+                }
+            });
         });
     }
 
