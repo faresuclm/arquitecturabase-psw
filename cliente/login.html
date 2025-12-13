@@ -172,6 +172,47 @@
             color: var(--text-primary);
         }
 
+        /* Input con icono de contraseña */
+        .position-relative .form-control {
+            padding-right: 80px !important; /* Espacio para ambos iconos */
+        }
+
+        /* Icono de mostrar/ocultar contraseña */
+        .toggle-password {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 16px;
+            color: #64748b;
+            z-index: 10;
+            transition: color 0.2s;
+            user-select: none;
+            padding: 5px;
+        }
+
+        .toggle-password:hover {
+            color: var(--primary-color);
+        }
+
+        /* Icono de validación (check/error) - posicionado antes del toggle password */
+        .position-relative .form-control.is-valid,
+        .position-relative .form-control.is-invalid {
+            background-image: none !important; /* Eliminar el icono por defecto de Bootstrap */
+        }
+
+        /* Iconos de validación personalizados */
+        .validation-icon {
+            position: absolute;
+            right: 48px; /* Posicionado a la izquierda del icono de contraseña */
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            z-index: 9;
+            pointer-events: none;
+        }
+
         .form-control:focus {
             border-color: var(--primary-color);
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15); /* Sombra azul */
@@ -354,8 +395,10 @@
                     <label for="pwdLogin">Contraseña</label>
                     <div class="position-relative">
                         <input type="password" class="form-control" id="pwdLogin" placeholder="••••••••" required autocomplete="current-password">
-                        <i class="fas fa-eye text-secondary" id="togglePasswordLogin"
-                           style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px;"></i>
+                        <span class="validation-icon" id="pwdLoginValidationIcon" style="display: none;">
+                            <i class="fas" style="font-size: 14px;"></i>
+                        </span>
+                        <i class="fas fa-eye toggle-password" id="togglePasswordLogin" title="Mostrar contraseña"></i>
                     </div>
                     <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
                         La contraseña es obligatoria
@@ -425,10 +468,11 @@
                         </label>
                         <div class="position-relative">
                             <input type="password" class="form-control" id="googlePassword"
-                                   placeholder="Mínimo 8 caracteres" required minlength="8"
-                                   style="padding-right: 40px;">
-                            <i class="fas fa-eye text-secondary" id="toggleGooglePassword"
-                               style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px;"></i>
+                                   placeholder="Mínimo 8 caracteres" required minlength="8">
+                            <span class="validation-icon" id="googlePwdValidationIcon" style="display: none;">
+                                <i class="fas" style="font-size: 14px;"></i>
+                            </span>
+                            <i class="fas fa-eye toggle-password" id="toggleGooglePassword" title="Mostrar contraseña"></i>
                         </div>
                         <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
                             La contraseña debe tener al menos 8 caracteres
@@ -454,6 +498,7 @@
     </div>
 </div>
 
+<!-- Scripts desactivados cuando se carga dinámicamente - Los eventos se manejan desde controlWeb.js
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -495,5 +540,6 @@
         }, 10000);
     });
 </script>
+-->
 </body>
 </html>

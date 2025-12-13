@@ -94,9 +94,6 @@ function ClienteRest() {
                     $.cookie("userName", displayName);
                     console.log("✅ Cookies establecidas:", {nick: data.nick, userName: displayName});
 
-                    // Restaurar el botón inmediatamente
-                    if (callback) callback();
-
                     console.log("🔄 Iniciando redirección inmediata...");
 
                     // Limpiar formularios
@@ -110,6 +107,11 @@ function ClienteRest() {
 
                     // Mostrar mensaje de bienvenida
                     cw.mostrarMensaje("Bienvenido " + displayName);
+
+                    // Restaurar el botón AL FINAL con un pequeño delay para asegurar que la UI se actualice
+                    setTimeout(function() {
+                        if (callback) callback();
+                    }, 100);
                 } else {
                     console.warn("⚠️ Login rechazado - nick:", data.nick);
                     // Restaurar botón inmediatamente si falla
