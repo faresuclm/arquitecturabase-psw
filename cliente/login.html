@@ -193,10 +193,23 @@
             box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
         }
 
-        .btn-primary-custom:hover {
+        .btn-primary-custom:hover:not(:disabled) {
             background: var(--primary-dark);
             transform: translateY(-1px);
             box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary-custom:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .form-control.is-invalid {
+            border-color: #dc3545;
+        }
+
+        .form-control.is-valid {
+            border-color: #10b981;
         }
 
         /* Botón Google */
@@ -215,12 +228,19 @@
             text-decoration: none;
             transition: background 0.2s;
             gap: 12px;
+            position: relative;
         }
 
-        .btn-google:hover {
+        .btn-google:hover:not(.disabled) {
             background: var(--primary-light);
             color: var(--text-primary);
             text-decoration: none;
+        }
+
+        .btn-google.disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            pointer-events: none;
         }
 
         .divider {
@@ -319,46 +339,123 @@
                 <p class="auth-subtitle">Ingresa tus credenciales para acceder al chat.</p>
             </div>
 
-            <form>
+            <form id="loginForm" novalidate>
                 <div class="form-group">
                     <label for="emailLogin">Correo Personal/Educativo</label>
                     <div class="input-group">
-                        <input type="email" class="form-control" id="emailLogin" placeholder="usuario@alu.uclm.es">
+                        <input type="email" class="form-control" id="emailLogin" placeholder="usuario@alu.uclm.es" required autocomplete="email">
+                    </div>
+                    <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                        Por favor, introduce un correo válido
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="pwdLogin">Contraseña</label>
                     <div class="position-relative">
-                        <input type="password" class="form-control" id="pwdLogin" placeholder="••••••••">
-                        <i class="fas fa-eye text-secondary" id="togglePassword"
+                        <input type="password" class="form-control" id="pwdLogin" placeholder="••••••••" required autocomplete="current-password">
+                        <i class="fas fa-eye text-secondary" id="togglePasswordLogin"
                            style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px;"></i>
+                    </div>
+                    <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                        La contraseña es obligatoria
                     </div>
                     <div class="text-right mt-2">
                         <a href="#" class="text-primary small font-weight-bold"
-                           style="font-size: 13px; text-decoration:none">¿Olvidaste la contraseña?</a>
+                           style="font-size: 13px; text-decoration:none" onclick="alert('Contacta con el administrador para recuperar tu contraseña'); return false;">¿Olvidaste la contraseña?</a>
                     </div>
                 </div>
 
                 <button type="submit" id="btnLogin" class="btn-primary-custom">
-                    Iniciar Sesión
+                    <span class="btn-text">Iniciar Sesión</span>
+                    <span class="btn-spinner" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i> Iniciando...
+                    </span>
                 </button>
             </form>
 
             <div class="divider"><span>O CONTINÚA CON</span></div>
 
-            <a href="/auth/google" class="btn-google">
+            <a href="/auth/google/login" class="btn-google" id="btnGoogleLogin">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G"
-                     style="width:20px;">
-                Cuenta Google
+                     style="width:20px;" class="google-icon">
+                <span class="google-text">Google</span>
+                <span class="google-spinner" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i> Conectando...
+                </span>
             </a>
 
             <div class="text-center mt-4" style="font-size: 14px; color: var(--text-secondary);">
-                ¿No tienes cuenta? <a href="#" id="btnMostrarRegistro" class="text-primary font-weight-bold">Regístrate aquí</a>
+                ¿Primer push? <a href="#" id="btnMostrarRegistro" class="text-primary font-weight-bold">Crear cuenta</a>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Modal para solicitar contraseña después de registro con Google -->
+<div class="modal fade" id="modalPasswordGoogle" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding: 24px;">
+                <h5 class="modal-title" style="font-weight: 700; color: var(--text-primary);">
+                    <i class="fas fa-key text-primary mr-2"></i> Define tu contraseña
+                </h5>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <div class="alert alert-info" style="border-radius: 8px; border: none; background: #eff6ff;">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <strong>¡Bienvenido!</strong> Para completar tu registro, define una contraseña para tu cuenta.
+                </div>
+
+                <div id="googleUserInfo" class="mb-3 p-3" style="background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="font-size: 14px; color: var(--text-secondary);">
+                        <strong style="color: var(--text-primary);">Email:</strong>
+                        <span id="googleEmail"></span>
+                    </div>
+                    <div style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;">
+                        <strong style="color: var(--text-primary);">Nombre:</strong>
+                        <span id="googleName"></span>
+                    </div>
+                </div>
+
+                <form id="formPasswordGoogle">
+                    <div class="form-group">
+                        <label for="googlePassword" style="font-weight: 600; color: var(--text-primary);">
+                            Contraseña <span class="text-danger">*</span>
+                        </label>
+                        <div class="position-relative">
+                            <input type="password" class="form-control" id="googlePassword"
+                                   placeholder="Mínimo 8 caracteres" required minlength="8"
+                                   style="padding-right: 40px;">
+                            <i class="fas fa-eye text-secondary" id="toggleGooglePassword"
+                               style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px;"></i>
+                        </div>
+                        <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                            La contraseña debe tener al menos 8 caracteres
+                        </div>
+                        <div class="password-strength mt-2" id="googlePasswordStrength" style="display: none;">
+                            <div class="progress" style="height: 5px; border-radius: 3px;">
+                                <div class="progress-bar" role="progressbar" style="width: 0%;"></div>
+                            </div>
+                            <small class="strength-text" style="font-size: 11px; display: block; margin-top: 4px;"></small>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btnConfirmPasswordGoogle" class="btn btn-primary btn-block"
+                            style="height: 44px; border-radius: 8px; font-weight: 600;">
+                        <span class="btn-text">Confirmar y Continuar</span>
+                        <span class="btn-spinner" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i> Procesando...
+                        </span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
     // Redirigir a la página principal si se accede directamente a login.html
@@ -366,12 +463,36 @@
         window.location.href = '/';
     }
 
-    document.getElementById('togglePassword').addEventListener('click', function () {
-        const input = document.getElementById('pwdLogin');
-        const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
-        input.setAttribute('type', type);
-        this.classList.toggle('fa-eye');
-        this.classList.toggle('fa-eye-slash');
+    const togglePasswordBtn = document.getElementById('togglePasswordLogin');
+    if (togglePasswordBtn) {
+        togglePasswordBtn.addEventListener('click', function () {
+            const input = document.getElementById('pwdLogin');
+            const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+            input.setAttribute('type', type);
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
+    }
+
+    // Prevenir doble clic en el botón de Google
+    document.getElementById('btnGoogleLogin').addEventListener('click', function (e) {
+        if (this.classList.contains('disabled')) {
+            e.preventDefault();
+            return false;
+        }
+
+        this.classList.add('disabled');
+        this.querySelector('.google-icon').style.display = 'none';
+        this.querySelector('.google-text').style.display = 'none';
+        this.querySelector('.google-spinner').style.display = 'inline';
+
+        // Timeout de seguridad por si algo falla
+        setTimeout(() => {
+            this.classList.remove('disabled');
+            this.querySelector('.google-icon').style.display = 'inline';
+            this.querySelector('.google-text').style.display = 'inline';
+            this.querySelector('.google-spinner').style.display = 'none';
+        }, 10000);
     });
 </script>
 </body>

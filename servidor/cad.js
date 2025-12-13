@@ -25,17 +25,23 @@ function CAD() {
     };
 
     function buscarOCrear(coleccion, criterio, callback) {
+        // Filtrar por email para buscar
+        const filtro = {email: criterio.email};
+
         coleccion.findOneAndUpdate(
-            criterio,
+            filtro,
             {$set: criterio},
-            {upsert: true, returnDocument: "after", projection: {email: 1}},
+            {upsert: true, returnDocument: "after"},
             function (err, doc) {
                 if (err) {
-                    throw err;
+                    console.error("Error al buscar/crear usuario:", err);
+                    callback(null);
+                } else if (doc && doc.value) {
+                    console.log("Usuario encontrado/creado:", doc.value.email);
+                    callback(doc.value);
                 } else {
-                    console.log("Elemento actualizado");
-                    console.log(doc.value.email);
-                    callback({email: doc.value.email});
+                    console.error("❌ No se pudo obtener el documento actualizado");
+                    callback(null);
                 }
             }
         );
@@ -51,10 +57,13 @@ function CAD() {
 
     function buscar(coleccion, criterio, callback) {
         coleccion.find(criterio).toArray(function (error, usuarios) {
-            if (usuarios.length == 0) {
+            if (error) {
+                console.error("Error al buscar usuario:", error);
                 callback(undefined);
-            } else {
+            } else if (usuarios && usuarios.length > 0) {
                 callback(usuarios[0]);
+            } else {
+                callback(undefined);
             }
         });
     }
@@ -62,9 +71,10 @@ function CAD() {
     function insertar(coleccion, elemento, callback) {
         coleccion.insertOne(elemento, function (err, result) {
             if (err) {
-                console.log("error");
+                console.error("❌ Error al insertar usuario en BD:", err.message);
+                callback({email: -1, error: err.message});
             } else {
-                console.log("Nuevo elemento creado");
+                console.log("✅ Usuario insertado en BD:", elemento.email);
                 callback(elemento);
             }
         });
@@ -75,16 +85,23 @@ function CAD() {
     }
 
     function actualizar(coleccion, obj, callback) {
-        coleccion.findOneAndUpdate({_id: ObjectId(obj._id)}, {$set: obj},
-            {upsert: false, returnDocument: "after", projection: {email: 1}},
+        coleccion.findOneAndUpdate(
+            {_id: ObjectId(obj._id)},
+            {$set: obj},
+            {upsert: false, returnDocument: "after"},
             function (err, doc) {
                 if (err) {
-                    throw err;
+                    console.error("❌ Error al actualizar usuario en BD:", err.message);
+                    callback({email: -1, error: err.message});
+                } else if (doc && doc.value) {
+                    console.log("✅ Usuario actualizado en BD:", doc.value.email);
+                    callback(doc.value);
                 } else {
-                    console.log("Elemento actualizado");
-                    callback({email: doc.value.email});
+                    console.warn("⚠️ Usuario no encontrado para actualizar");
+                    callback({email: -1, error: "Usuario no encontrado"});
                 }
-            });
+            }
+        );
     }
 
 }

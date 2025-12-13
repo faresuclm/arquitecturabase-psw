@@ -85,19 +85,34 @@ app.get("/eliminarUsuario/:nick", function (request, response) {
     response.send(res);
 });
 
+// Ruta para LOGIN con Google
 app.get(
-    "/auth/google",
+    "/auth/google/login",
     passport.authenticate("google", {scope: ["profile", "email"]})
 );
+
+// Ruta para REGISTRO con Google
+app.get(
+    "/auth/google/registro",
+    passport.authenticate("google", {scope: ["profile", "email"]})
+);
+
 app.get(
     "/google/callback",
     passport.authenticate("google", {failureRedirect: "/fallo"}),
     function (req, res) {
-        console.log("Google callback exitoso");
+        console.log("🔐 Google callback exitoso");
         console.log("Usuario autenticado:", req.user ? "Sí" : "No");
         if (req.user) {
             console.log("Email del usuario:", req.user.emails ? req.user.emails[0].value : "No disponible");
         }
+
+        // Detectar de dónde viene usando el referer
+        const referer = req.get('referer') || '';
+        const origin = referer.includes('view=registro') ? 'registro' : 'login';
+        req.session.googleOrigin = origin;
+        console.log("🔍 Origen detectado:", origin, "| Referer:", referer);
+
         res.redirect("/good");
     }
 );
@@ -117,30 +132,88 @@ app.get("/good", function (request, response) {
 app.get("/good", function (request, response) {
     // Verificar que el usuario existe y tiene emails
     if (!request.user || !request.user.emails || request.user.emails.length === 0) {
-        console.error("Error: Usuario no autenticado o sin email");
-        return response.redirect("/?error=auth_failed");
+        console.error("❌ Error: Usuario no autenticado o sin email en callback de Google");
+        return response.redirect("/?error=auth_failed&message=" + encodeURIComponent("Error de autenticación con Google"));
     }
 
     let email = request.user.emails[0].value;
+    let origin = request.session.googleOrigin || 'login';
+    console.log("🔐 Google OAuth: Verificando usuario:", email, "| Origen:", origin);
+
     // Intentar obtener el nombre del perfil de Google
-    let displayName = email; // Por defecto usar el email
+    let displayName = email;
+    let nombre = '';
+    let apellidos = '';
+
     if (request.user.displayName) {
         displayName = request.user.displayName;
-    } else if (request.user.name && request.user.name.givenName) {
-        displayName = request.user.name.givenName;
+    }
+
+    if (request.user.name && request.user.name.givenName) {
+        nombre = request.user.name.givenName;
+        displayName = nombre;
         if (request.user.name.familyName) {
-            displayName += ' ' + request.user.name.familyName;
+            apellidos = request.user.name.familyName;
+            displayName += ' ' + apellidos;
         }
     }
 
-    sistema.usuarioGoogle({"email": email}, function (obj) {
-        if (obj && obj.email) {
-            response.cookie("nick", obj.email);
-            response.cookie("userName", displayName);
-            response.redirect("/");
+    // Verificar si el usuario ya existe
+    sistema.verificarUsuarioGoogle(email, function (existeUsuario) {
+        if (existeUsuario) {
+            // Usuario YA EXISTE
+            if (origin === 'login') {
+                // LOGIN: Hacer login automático
+                console.log("✅ Usuario Google existente, iniciando sesión automática:", email);
+                request.logIn(existeUsuario, function(err) {
+                    if (err) {
+                        console.error("❌ Error al crear sesión:", err);
+                        return response.redirect("/?error=session_error");
+                    }
+
+                    response.cookie("nick", existeUsuario.email);
+
+                    let fullName = '';
+                    if (existeUsuario.nombre && existeUsuario.apellidos) {
+                        fullName = existeUsuario.nombre + ' ' + existeUsuario.apellidos;
+                    } else if (existeUsuario.nombre) {
+                        fullName = existeUsuario.nombre;
+                    } else {
+                        fullName = displayName;
+                    }
+
+                    response.cookie("userName", fullName);
+                    response.redirect("/?google=login_success");
+                });
+            } else {
+                // REGISTRO: Mostrar mensaje de error
+                console.log("⚠️ Usuario Google ya registrado, desde REGISTRO:", email);
+                return response.redirect("/?google=already_exists&email=" + encodeURIComponent(email) +
+                                       "&nombre=" + encodeURIComponent(displayName));
+            }
         } else {
-            console.error("Error al crear/buscar usuario en la base de datos");
-            response.redirect("/?error=db_error");
+            // Usuario NO EXISTE - Guardar datos y pedir contraseña
+            console.log("📝 Nuevo usuario Google, solicitando contraseña:", email, "| Origen:", origin);
+
+            // Guardar datos de Google en la sesión
+            request.session.googleUserData = {
+                email: email,
+                nombre: nombre,
+                apellidos: apellidos,
+                displayName: displayName,
+                confirmada: true,
+                provider: 'google'
+            };
+
+            if (origin === 'login') {
+                // LOGIN: Mostrar modal en página de login
+                response.redirect("/?google=new_user&email=" + encodeURIComponent(email) +
+                                "&nombre=" + encodeURIComponent(displayName));
+            } else {
+                // REGISTRO: Mostrar modal en página de registro
+                response.redirect("/?view=registro&google=new_user&email=" + encodeURIComponent(email) +
+                                "&nombre=" + encodeURIComponent(displayName));
+            }
         }
     });
 });
@@ -177,29 +250,229 @@ app.get("/ok", function (request, response) {
 app.post('/oneTap/callback',
     passport.authenticate('google-one-tap', {failureRedirect: '/fallo'}),
     function (req, res) {
-        // Successful authentication, redirect home.
+        console.log("🔐 Google One Tap: Autenticación exitosa");
         res.redirect('/good');
     });
 
 
+app.post("/completarRegistroGoogle", function (request, response) {
+    const { password } = request.body;
+
+    console.log("📝 [1/7] Completando registro de usuario Google");
+    console.log("📝 Datos recibidos - Password length:", password ? password.length : 0);
+
+    // Verificar que existe la sesión con datos de Google
+    if (!request.session.googleUserData) {
+        console.error("❌ No hay datos de Google en la sesión");
+        console.error("❌ Session keys:", Object.keys(request.session));
+        return response.status(400).send({
+            success: false,
+            error: "No hay datos de registro pendientes"
+        });
+    }
+
+    console.log("✅ [2/7] Sesión encontrada con datos de Google");
+
+    // Validar contraseña
+    if (!password || password.length < 8) {
+        console.warn("⚠️ Contraseña inválida");
+        return response.status(400).send({
+            success: false,
+            error: "La contraseña debe tener al menos 8 caracteres"
+        });
+    }
+
+    console.log("✅ [3/7] Contraseña validada");
+
+    // Obtener datos de Google de la sesión
+    const googleData = request.session.googleUserData;
+    console.log("📝 Datos de Google:", { email: googleData.email, nombre: googleData.nombre });
+
+    // Crear objeto de usuario completo
+    const nuevoUsuario = {
+        email: googleData.email,
+        password: password,
+        nombre: googleData.nombre,
+        apellidos: googleData.apellidos,
+        confirmada: true, // Google OAuth está pre-verificado
+        provider: 'google',
+        fechaRegistro: new Date()
+    };
+
+    console.log("📝 [4/7] Iniciando registro en BD...");
+
+    // Registrar usuario en la base de datos
+    sistema.registrarUsuario(nuevoUsuario, function (res) {
+        console.log("📝 [5/7] Callback de registrarUsuario recibido");
+        console.log("📝 Resultado:", res);
+
+        if (res.email === -1) {
+            console.error("❌ Error al registrar usuario Google:", res.error);
+            return response.status(500).send({
+                success: false,
+                error: res.error || "Error al crear el usuario"
+            });
+        }
+
+        console.log("✅ Usuario Google registrado con contraseña:", res.email);
+        console.log("📝 [6/7] Buscando usuario para login automático...");
+
+        // Buscar el usuario recién creado para hacer login
+        sistema.buscarUsuarioPorEmail(res.email, function(usuario) {
+            console.log("📝 Callback de buscarUsuarioPorEmail recibido");
+            console.log("📝 Usuario encontrado:", usuario ? "SÍ" : "NO");
+
+            if (!usuario) {
+                console.error("❌ Usuario NO encontrado después de registro");
+                return response.status(500).send({
+                    success: false,
+                    error: "Usuario creado pero no se pudo iniciar sesión"
+                });
+            }
+
+            console.log("✅ Usuario encontrado, iniciando login automático...");
+
+            // Hacer login automático
+            request.logIn(usuario, function(err) {
+                console.log("📝 Callback de logIn recibido");
+
+                if (err) {
+                    console.error("❌ Error al crear sesión:", err);
+                    return response.status(500).send({
+                        success: false,
+                        error: "Usuario creado pero error al iniciar sesión"
+                    });
+                }
+
+                // Limpiar datos de sesión temporal
+                delete request.session.googleUserData;
+
+                console.log("✅ [7/7] Login automático exitoso para:", usuario.email);
+                console.log("📝 Enviando respuesta SUCCESS al cliente...");
+
+                // Limpiar datos de sesión temporal
+                delete request.session.googleUserData;
+
+                // Enviar respuesta
+                const responseData = {
+                    success: true,
+                    email: usuario.email,
+                    nombre: googleData.displayName
+                };
+
+                console.log("📝 Datos de respuesta:", JSON.stringify(responseData));
+
+                response.json(responseData);
+
+                console.log("✅ Respuesta JSON enviada exitosamente");
+            });
+        });
+    });
+});
+
 app.post("/registrarUsuario", function (request, response) {
+    // Validar datos de entrada
+    const { email, password, nombre, apellidos } = request.body;
+
+    if (!email || !password) {
+        return response.status(400).send({
+            nick: -1,
+            error: "Email y contraseña son obligatorios"
+        });
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return response.status(400).send({
+            nick: -1,
+            error: "Formato de email inválido"
+        });
+    }
+
+    // Validar longitud de contraseña
+    if (password.length < 8) {
+        return response.status(400).send({
+            nick: -1,
+            error: "La contraseña debe tener al menos 8 caracteres"
+        });
+    }
+
+    // Validar nombre y apellidos si están presentes
+    if (nombre && /\d/.test(nombre)) {
+        return response.status(400).send({
+            nick: -1,
+            error: "El nombre no puede contener números"
+        });
+    }
+
+    if (apellidos && /\d/.test(apellidos)) {
+        return response.status(400).send({
+            nick: -1,
+            error: "Los apellidos no pueden contener números"
+        });
+    }
+
     sistema.registrarUsuario(request.body, function (res) {
+        if (res.email === -1) {
+            return response.status(409).send({
+                nick: -1,
+                error: "El email ya está registrado"
+            });
+        }
         response.send({"nick": res.email});
     });
 });
 
 app.post('/loginUsuario', function(request, response, next) {
+    // Validar datos de entrada
+    const { email, password } = request.body;
+
+    if (!email || !password) {
+        return response.status(400).send({
+            nick: -1,
+            error: "Email y contraseña son obligatorios"
+        });
+    }
+
     passport.authenticate('local', function(err, user, info) {
         if (err) {
-            return response.send({"nick": -1});
+            console.error("❌ Error crítico en autenticación:", err);
+            return response.status(500).send({
+                nick: -1,
+                error: "Error en el servidor"
+            });
         }
+
         if (!user) {
-            return response.send({"nick": -1});
+            // Usuario no encontrado o credenciales incorrectas
+            console.warn("⚠️ Login fallido: Usuario no encontrado o credenciales incorrectas");
+            return response.status(401).send({
+                nick: -1,
+                error: "Credenciales incorrectas o cuenta no verificada"
+            });
         }
+
+        // Verificar que el usuario ha confirmado su cuenta
+        if (user.confirmada === false) {
+            console.warn("⚠️ Login bloqueado: Cuenta no verificada -", user.email);
+            return response.status(403).send({
+                nick: -1,
+                error: "Por favor, verifica tu correo electrónico antes de iniciar sesión"
+            });
+        }
+
         request.logIn(user, function(err) {
             if (err) {
-                return response.send({"nick": -1});
+                console.error("❌ Error al crear sesión:", err);
+                return response.status(500).send({
+                    nick: -1,
+                    error: "Error al crear la sesión"
+                });
             }
+
+            console.log("✅ Login exitoso:", user.email);
+
             // Construir el nombre completo
             let nombreCompleto = '';
             if (user.nombre && user.apellidos) {
