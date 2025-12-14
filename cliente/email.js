@@ -45,3 +45,40 @@ module.exports.enviarEmail = async function (direccion, key, men) {
         `
     });
 }
+
+module.exports.enviarEmailRecuperacion = async function (direccion, token) {
+    const result = await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: direccion,
+        subject: 'Recuperación de contraseña - ' + appName,
+        text: 'Pulsa aquí para restablecer tu contraseña',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f7fa; border-radius: 10px;">
+                <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h2 style="color: #2c3e50; text-align: center; margin-bottom: 20px;">🔑 Recuperación de Contraseña</h2>
+                    <p style="color: #5a6c7d; font-size: 16px; line-height: 1.6;">
+                        Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en ${appName}.
+                    </p>
+                    <p style="color: #5a6c7d; font-size: 16px; line-height: 1.6;">
+                        Para continuar, haz clic en el siguiente botón:
+                    </p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${url}restablecerPassword/${direccion}/${token}" 
+                           style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
+                                  color: white; padding: 15px 40px; text-decoration: none; border-radius: 12px; 
+                                  font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">
+                            Restablecer mi contraseña
+                        </a>
+                    </div>
+                    <p style="color: #7f8c8d; font-size: 14px; text-align: center; margin-top: 20px;">
+                        Este enlace expirará en 1 hora por razones de seguridad.
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #e8ecef; margin: 20px 0;">
+                    <p style="color: #95a5a6; font-size: 12px; text-align: center;">
+                        Si no solicitaste este cambio, puedes ignorar este correo de forma segura. Tu contraseña no será modificada.
+                    </p>
+                </div>
+            </div>
+        `
+    });
+}

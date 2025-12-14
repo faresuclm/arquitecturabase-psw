@@ -244,6 +244,13 @@ app.get("/confirmarUsuario/:email/:key", function (request, response) {
     });
 })
 
+app.get("/restablecerPassword/:email/:token", function (request, response) {
+    let email = request.params.email;
+    let token = request.params.token;
+    // Redirigir al frontend con los parámetros para restablecer la contraseña
+    response.redirect('/?resetPassword=true&email=' + encodeURIComponent(email) + '&token=' + encodeURIComponent(token));
+});
+
 app.get("/ok", function (request, response) {
     response.send({
         nick: request.user.email,
@@ -509,6 +516,58 @@ app.post("/cerrarSesion", function (request, response) {
     // - Actualizar el estado del usuario
     // - Limpiar recursos asociados
     response.send({"resultado": "sesion_cerrada", "nick": nick});
+});
+
+app.post("/solicitarRecuperacionPassword", function (request, response) {
+    const { email } = request.body;
+
+    if (!email) {
+        return response.status(400).send({
+            success: false,
+            error: "El correo electrónico es obligatorio"
+        });
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return response.status(400).send({
+            success: false,
+            error: "Formato de email inválido"
+        });
+    }
+
+    sistema.solicitarRecuperacionPassword(email, function (res) {
+        if (!res.success) {
+            return response.status(404).send(res);
+        }
+        response.send(res);
+    });
+});
+
+app.post("/restablecerPassword", function (request, response) {
+    const { email, token, newPassword } = request.body;
+
+    if (!email || !token || !newPassword) {
+        return response.status(400).send({
+            success: false,
+            error: "Datos incompletos"
+        });
+    }
+
+    if (newPassword.length < 8) {
+        return response.status(400).send({
+            success: false,
+            error: "La contraseña debe tener al menos 8 caracteres"
+        });
+    }
+
+    sistema.restablecerPassword(email, token, newPassword, function (res) {
+        if (!res.success) {
+            return response.status(400).send(res);
+        }
+        response.send(res);
+    });
 });
 
 app.listen(PORT, "0.0.0.0", () => {

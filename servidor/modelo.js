@@ -247,7 +247,6 @@ function Sistema() {
         });
     }
 
-
     this.confirmarUsuario = function (obj, callback) {
         let modelo = this;
         this.cad.buscarUsuario({"email": obj.email, "confirmada": false, "key": obj.key}, function (usr) {
@@ -260,6 +259,95 @@ function Sistema() {
                 callback({"email": -1});
             }
         })
+    }
+
+    this.solicitarRecuperacionPassword = function (email, callback) {
+        let modelo = this;
+
+        // Buscar el usuario por email
+        this.cad.buscarUsuario({"email": email}, function (usr) {
+            if (!usr) {
+                console.log("Usuario no encontrado para recuperación:", email);
+                return callback({"success": false, "error": "No existe una cuenta con este correo"});
+            }
+
+            // Verificar que es un usuario local (no de Google sin contraseña)
+            if (usr.provider === 'google' && !usr.password) {
+                console.log("Usuario de Google sin contraseña:", email);
+                return callback({
+                    "success": false,
+                    "error": "Esta cuenta fue creada con Google. Por favor, inicia sesión con Google."
+                });
+            }
+
+            // Generar token de recuperación (timestamp + random)
+            const resetToken = Date.now().toString() + Math.random().toString(36).substring(2, 15);
+            const resetTokenExpiry = Date.now() + 3600000; // 1 hora desde ahora
+
+            // Actualizar usuario con el token
+            usr.resetToken = resetToken;
+            usr.resetTokenExpiry = resetTokenExpiry;
+
+            modelo.cad.actualizarUsuario(usr, function (res) {
+                if (res && res.email) {
+                    console.log("✅ Token de recuperación generado para:", email);
+
+                    // Enviar email con el token
+                    correo.enviarEmailRecuperacion(email, resetToken);
+
+                    callback({"success": true, "email": email});
+                } else {
+                    console.error("❌ Error al actualizar usuario con token de recuperación");
+                    callback({"success": false, "error": "Error al procesar la solicitud"});
+                }
+            });
+        });
+    }
+
+    this.restablecerPassword = function (email, token, newPassword, callback) {
+        let modelo = this;
+
+        // Buscar el usuario por email y token
+        this.cad.buscarUsuario({"email": email, "resetToken": token}, function (usr) {
+            if (!usr) {
+                console.log("Usuario o token no válido para restablecimiento:", email);
+                return callback({"success": false, "error": "Enlace inválido o expirado"});
+            }
+
+            // Verificar que el token no haya expirado
+            if (!usr.resetTokenExpiry || Date.now() > usr.resetTokenExpiry) {
+                console.log("Token expirado para:", email);
+                return callback({"success": false, "error": "El enlace ha expirado. Solicita uno nuevo."});
+            }
+
+            // Validar la nueva contraseña
+            if (!newPassword || newPassword.length < 8) {
+                return callback({"success": false, "error": "La contraseña debe tener al menos 8 caracteres"});
+            }
+
+            // Cifrar la nueva contraseña
+            bcrypt.hash(newPassword, SALT_ROUNDS, function(err, hash) {
+                if (err) {
+                    console.error("Error al cifrar la nueva contraseña:", err);
+                    return callback({"success": false, "error": "Error al procesar la contraseña"});
+                }
+
+                // Actualizar la contraseña y eliminar el token
+                usr.password = hash;
+                delete usr.resetToken;
+                delete usr.resetTokenExpiry;
+
+                modelo.cad.actualizarUsuario(usr, function (res) {
+                    if (res && res.email) {
+                        console.log("✅ Contraseña restablecida exitosamente para:", email);
+                        callback({"success": true, "email": email});
+                    } else {
+                        console.error("❌ Error al actualizar contraseña");
+                        callback({"success": false, "error": "Error al actualizar la contraseña"});
+                    }
+                });
+            });
+        });
     }
 
 }

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupos de Chat - esiiChat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            padding: 0;
+        }
+
+        .grupos-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header-section {
+            margin-bottom: 40px;
+        }
+
+        .chat-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .chat-title i {
+            color: #2563eb;
+            font-size: 28px;
+        }
+
+        .user-info {
+            color: #64748b;
+            font-size: 16px;
+            margin-top: 8px;
+        }
+
+        .chat-subtitle {
+            color: #64748b;
+            font-size: 16px;
+            margin-top: 12px;
+        }
+
+        .grupos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+            gap: 24px;
+            margin-top: 30px;
+        }
+
+        .grupo-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+            position: relative;
+        }
+
+        .grupo-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.15);
+            border-color: #2563eb;
+        }
+
+        .grupo-header {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .grupo-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .grupo-icon i {
+            color: white;
+            font-size: 24px;
+        }
+
+        .grupo-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .grupo-nombre {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .grupo-descripcion {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .grupo-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #eff6ff;
+            color: #2563eb;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .grupo-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .grupo-stats {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .grupo-stats i {
+            color: #94a3b8;
+            font-size: 16px;
+        }
+
+        .grupo-time {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .grupo-time i {
+            font-size: 14px;
+        }
+
+        .ultimo-mensaje {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #475569;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grupos-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .grupos-container {
+                padding: 20px 16px;
+            }
+
+            .chat-title {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="grupos-container">
+        <div class="header-section">
+            <div class="chat-title">
+                <i class="fas fa-users"></i>
+                Chat Ingeniería Informática
+            </div>
+            <div class="user-info" id="userInfo"></div>
+            <div class="chat-subtitle">Selecciona un grupo para unirte a la conversación</div>
+        </div>
+
+        <div class="grupos-grid" id="gruposGrid">
+            <!-- Los grupos se cargarán dinámicamente aquí -->
+        </div>
+    </div>
+
+    <script>
+        // Datos de ejemplo de los grupos
+        const grupos = [
+            {
+                id: 1,
+                nombre: "Programación I",
+                descripcion: "Fundamentos de programación y algoritmos",
+                badge: "1er Semestre",
+                activos: 24,
+                ultimoMensaje: "¿Alguien puede explicar recursividad?",
+                tiempo: "Hace 5m"
+            },
+            {
+                id: 2,
+                nombre: "Estructuras de Datos",
+                descripcion: "Listas, árboles, grafos y más",
+                badge: "2do Semestre",
+                activos: 18,
+                ultimoMensaje: "El examen de árboles binarios es mañana",
+                tiempo: "Hace 10m"
+            },
+            {
+                id: 3,
+                nombre: "Base de Datos",
+                descripcion: "SQL, modelado y diseño de bases de datos",
+                badge: "3er Semestre",
+                activos: 32,
+                ultimoMensaje: "Compartí el diagrama ER del proyecto",
+                tiempo: "Hace 2m"
+            },
+            {
+                id: 4,
+                nombre: "Desarrollo Web",
+                descripcion: "HTML, CSS, JavaScript y frameworks modernos",
+                badge: "4to Semestre",
+                activos: 45,
+                ultimoMensaje: "React Hooks son increíbles!",
+                tiempo: "Hace 15m"
+            },
+            {
+                id: 5,
+                nombre: "Redes de Computadoras",
+                descripcion: "Protocolos, arquitecturas y seguridad",
+                badge: "5to Semestre",
+                activos: 28,
+                ultimoMensaje: "Dudas sobre el protocolo TCP/IP",
+                tiempo: "Hace 25m"
+            },
+            {
+                id: 6,
+                nombre: "Inteligencia Artificial",
+                descripcion: "Machine Learning y algoritmos inteligentes",
+                badge: "6to Semestre",
+                activos: 21,
+                ultimoMensaje: "El proyecto de ML está interesante",
+                tiempo: "Hace 1h"
+            }
+        ];
+
+        function cargarGrupos() {
+            const grid = document.getElementById('gruposGrid');
+            grid.innerHTML = '';
+
+            grupos.forEach(grupo => {
+                const card = document.createElement('div');
+                card.className = 'grupo-card';
+                card.onclick = () => abrirGrupo(grupo.id, grupo.nombre, grupo.activos);
+
+                card.innerHTML = `
+                    <div class="grupo-header">
+                        <div class="grupo-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="grupo-info">
+                            <div class="grupo-nombre">${grupo.nombre}</div>
+                            <div class="grupo-descripcion">${grupo.descripcion}</div>
+                            <span class="grupo-badge">${grupo.badge}</span>
+                        </div>
+                    </div>
+                    <div class="ultimo-mensaje">${grupo.ultimoMensaje}</div>
+                    <div class="grupo-footer">
+                        <div class="grupo-stats">
+                            <i class="fas fa-user"></i>
+                            <span>${grupo.activos} activos</span>
+                        </div>
+                        <div class="grupo-time">
+                            <i class="fas fa-clock"></i>
+                            <span>${grupo.tiempo}</span>
+                        </div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        function abrirGrupo(id, nombre, activos) {
+            // Guardar información del grupo en sessionStorage
+            sessionStorage.setItem('grupoActual', JSON.stringify({id, nombre, activos}));
+            // Llamar a la función del controlWeb para cargar la vista del chat
+            if (typeof cw !== 'undefined' && cw.mostrarChat) {
+                cw.mostrarChat(id, nombre, activos);
+            }
+        }
+
+        // Cargar información del usuario
+        if (typeof $ !== 'undefined' && $.cookie) {
+            const userName = $.cookie("userName") || $.cookie("nick") || "Usuario";
+            document.getElementById('userInfo').textContent = userName;
+        }
+
+        // Cargar grupos al iniciar
+        cargarGrupos();
+    </script>
+</body>
+</html>
+
