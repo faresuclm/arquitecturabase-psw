@@ -554,7 +554,7 @@ function ControlWeb() {
         }
     };
 
-    this.comprobarSesion = function () {
+    this.comprobarSesion = async function () {
         // Usar la API de jquery-cookie: $.cookie('nick') para leer la cookie.
         let nick = $.cookie("nick");
 
@@ -575,12 +575,22 @@ function ControlWeb() {
         let token = urlParams.get('token');
 
         if (nick) {
-            // Verificar sesión activa en el servidor antes de proceder
-            fetch('/ok', {
-                credentials: 'include',
-                cache: 'no-store'
-            }).then(response => {
+            console.log('🔍 Cookie de sesión encontrada, verificando con servidor...');
+
+            try {
+                // ESPERAR verificación del servidor ANTES de continuar
+                const response = await fetch('/ok', {
+                    credentials: 'include',
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+
                 if (!response.ok) {
+                    console.error('❌ Sesión no válida en servidor');
                     // Sesión expirada, limpiar y redirigir
                     $.removeCookie("nick", { path: '/' });
                     $.removeCookie("userName", { path: '/' });
@@ -589,42 +599,48 @@ function ControlWeb() {
                     window.location.replace('/');
                     return;
                 }
-                return response.json();
-            }).then(userData => {
-                if (userData) {
-                    // Actualizar cookies con datos frescos del servidor
-                    let displayName = (userData.nombre && userData.apellidos)
-                        ? `${userData.nombre} ${userData.apellidos}`
-                        : userData.nombre || userData.nick;
-                    $.cookie("nick", userData.nick, { path: '/' });
-                    $.cookie("userName", displayName, { path: '/' });
+
+                const userData = await response.json();
+                console.log('✅ Sesión válida confirmada:', userData.nick);
+
+                // Actualizar cookies con datos frescos del servidor
+                let displayName = (userData.nombre && userData.apellidos)
+                    ? `${userData.nombre} ${userData.apellidos}`
+                    : userData.nombre || userData.nick;
+                $.cookie("nick", userData.nick, { path: '/' });
+                $.cookie("userName", displayName, { path: '/' });
+
+                // Mostrar el contenedor principal para la vista de grupos
+                $("#mainContainer").show();
+                // Remover la clase auth-container-wrapper si existe
+                $("#mainContainer").removeClass("auth-container-wrapper");
+
+                // Mostrar mensaje de éxito si viene de Google
+                if (googleSuccess === 'login_success') {
+                    cw.mostrarMensajeExito("¡Inicio de sesión con Google exitoso! Bienvenido, " + displayName);
+                    // Limpiar la URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else if (googleSuccess === 'success') {
+                    cw.mostrarMensajeExito("¡Bienvenido! Tu cuenta ha sido creada exitosamente.");
+                    window.history.replaceState({}, document.title, window.location.pathname);
                 }
-            }).catch(error => {
-                console.error('Error al verificar sesión:', error);
-            });
 
-            // Obtener el nombre del usuario guardado en la cookie
-            let displayName = $.cookie("userName") || nick;
-            // Mostrar el contenedor principal para la vista de grupos
-            $("#mainContainer").show();
-            // Remover la clase auth-container-wrapper si existe
-            $("#mainContainer").removeClass("auth-container-wrapper");
+                // Ocultar/limpiar el formulario si ya hay sesión
+                cw.eliminarFormulario();
 
-            // Mostrar mensaje de éxito si viene de Google
-            if (googleSuccess === 'login_success') {
-                cw.mostrarMensajeExito("¡Inicio de sesión con Google exitoso! Bienvenido, " + displayName);
-                // Limpiar la URL
-                window.history.replaceState({}, document.title, window.location.pathname);
-            } else if (googleSuccess === 'success') {
-                cw.mostrarMensajeExito("¡Bienvenido! Tu cuenta ha sido creada exitosamente.");
-                window.history.replaceState({}, document.title, window.location.pathname);
+                console.log('📂 Cargando vista de grupos...');
+                // Mostrar la vista de grupos de chat DESPUÉS de verificar sesión
+                cw.mostrarGrupos();
+
+            } catch (error) {
+                console.error('❌ Error al verificar sesión:', error);
+                // En caso de error, limpiar y mostrar login
+                $.removeCookie("nick", { path: '/' });
+                $.removeCookie("userName", { path: '/' });
+                localStorage.clear();
+                sessionStorage.clear();
+                cw.mostrarLogin();
             }
-
-            // Ocultar/limpiar el formulario si ya hay sesión
-            cw.eliminarFormulario();
-
-            // Mostrar la vista de grupos de chat
-            cw.mostrarGrupos();
         } else if (view === 'registro') {
             // Mostrar página de REGISTRO
             $("#mainContainer").show();

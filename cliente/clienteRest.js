@@ -94,24 +94,14 @@ function ClienteRest() {
                     $.cookie("userName", displayName);
                     console.log("✅ Cookies establecidas:", {nick: data.nick, userName: displayName});
 
-                    console.log("🔄 Iniciando redirección inmediata...");
+                    console.log("🔄 Redirigiendo después de login exitoso...");
 
-                    // Limpiar formularios
-                    cw.limpiar();
+                    // Restaurar el botón primero
+                    if (callback) callback();
 
-                    // Mostrar el navegador y el contenedor principal
-                    $("#mainNav").show();
-                    $("#mainContainer").show();
-
-                    console.log("✅ Redirección completada");
-
-                    // Mostrar la vista de grupos de chat
-                    cw.mostrarGrupos();
-
-                    // Restaurar el botón AL FINAL con un pequeño delay para asegurar que la UI se actualice
-                    setTimeout(function() {
-                        if (callback) callback();
-                    }, 100);
+                    // Recargar la página para iniciar con estado limpio
+                    // Esto asegura que comprobarSesion() se ejecute correctamente
+                    window.location.replace('/');
                 } else {
                     console.warn("⚠️ Login rechazado - nick:", data.nick);
                     // Restaurar botón inmediatamente si falla

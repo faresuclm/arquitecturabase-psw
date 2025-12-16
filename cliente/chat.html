@@ -18,13 +18,18 @@
 
         /* Loader principal del chat */
         .main-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
             background: #f8fafc;
             transition: opacity 0.3s ease;
+            z-index: 9999;
         }
 
         .main-loader-spinner {
@@ -599,17 +604,24 @@
         let typingTimeout = null;
         let isTyping = false;
 
-        // Inicializar al cargar la página
-        window.addEventListener('load', function() {
+        // Inicializar inmediatamente (ejecutar cuando el script se carga)
+        (async function() {
             // Evitar caché agresivo del navegador
-            if (performance.navigation.type === 2) {
+            if (performance.navigation && performance.navigation.type === 2) {
                 // Usuario llegó por botón "atrás" del navegador, forzar recarga
                 window.location.reload(true);
                 return;
             }
 
+            // Esperar a que el DOM esté listo si es necesario
+            if (document.readyState === 'loading') {
+                await new Promise(resolve => {
+                    document.addEventListener('DOMContentLoaded', resolve);
+                });
+            }
+
             inicializarChat();
-        });
+        })();
 
         async function inicializarChat() {
             try {
