@@ -4,7 +4,20 @@ const passport = require("passport");
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
 passport.serializeUser(function (user, done) {
-    done(null, user);
+    // Solo guardar datos esenciales en la sesión para evitar exceder el límite de cookies
+    if (user.emails && user.emails.length > 0) {
+        // Usuario de Google OAuth - solo guardar datos mínimos
+        const minimalUser = {
+            id: user.id,
+            displayName: user.displayName,
+            emails: user.emails,
+            provider: user.provider || 'google'
+        };
+        done(null, minimalUser);
+    } else {
+        // Usuario local - guardar como antes
+        done(null, user);
+    }
 });
 passport.deserializeUser(function (user, done) {
     done(null, user);

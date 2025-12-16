@@ -40,24 +40,74 @@ function ControlWeb() {
                 cw.validarCampoEmail($(this));
             });
 
-            $("#nombre, #apellidos").on("blur", function() {
-                cw.validarCampoNombre($(this));
-            });
 
             $("#pwd").on("blur", function() {
                 cw.validarCampoPassword($(this), 8);
+            });
+
+            // Validación en tiempo real de username
+            $("#username").on("input", function() {
+                const username = $(this).val().trim();
+                const $field = $(this);
+                const $availability = $(".username-availability");
+
+                // Limpiar estado previo COMPLETAMENTE
+                $field.removeClass("is-invalid is-valid");
+                $field.siblings(".invalid-feedback").hide(); // Ocultar TODOS los mensajes de error
+                $availability.hide();
+
+                if (username.length === 0) return;
+
+                // Validar formato
+                if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+                    $field.addClass("is-invalid");
+                    $field.siblings(".invalid-feedback").show();
+                    return;
+                }
+
+                // Mostrar spinner de verificación
+                $availability.html('<i class="fas fa-spinner fa-spin"></i> Verificando disponibilidad...').show();
+
+                // Verificar disponibilidad en el servidor con debounce
+                clearTimeout(cw.usernameTimeout);
+                cw.usernameTimeout = setTimeout(function() {
+                    console.log("🔍 Verificando username:", username);
+                    $.getJSON("/verificarUsername/" + encodeURIComponent(username), function(data) {
+                        console.log("📥 Respuesta del servidor:", data);
+                        if (data.disponible) {
+                            console.log("✅ Username disponible");
+                            $field.addClass("is-valid");
+                            $field.removeClass("is-invalid");
+                            $field.siblings(".invalid-feedback").hide(); // IMPORTANTE: Ocultar mensaje de error
+                            $availability.html('<span style="color: #22c55e;"><i class="fas fa-check-circle"></i> Nombre de usuario disponible</span>').show();
+                        } else {
+                            console.log("❌ Username NO disponible");
+                            $field.addClass("is-invalid");
+                            $field.removeClass("is-valid");
+                            $field.siblings(".invalid-feedback").hide(); // Ocultar mensaje genérico
+                            $availability.html('<span style="color: #ef4444;"><i class="fas fa-times-circle"></i> Nombre de usuario no disponible</span>').show();
+                        }
+                    }).fail(function(xhr, status, error) {
+                        console.error("❌ Error al verificar username:", status, error);
+                        $field.removeClass("is-valid is-invalid");
+                        $availability.hide();
+                    });
+                }, 500);
+            });
+
+            $("#username").on("blur", function() {
+                cw.validarCampoUsername($(this));
             });
 
             $("#btnRegistro").on("click", function (e) {
                 e.preventDefault();
 
                 let email = $("#email").val().trim();
+                let username = $("#username").val().trim();
                 let pwd = $("#pwd").val();
-                let nombre = $("#nombre").val().trim();
-                let apellidos = $("#apellidos").val().trim();
 
-                // Limpiar errores anteriores
-                $(".form-control").removeClass("is-invalid is-valid");
+                // NO limpiar las clases de validación aquí para preservar el estado de username
+                // Solo ocultar mensajes de error genéricos
                 $(".invalid-feedback").hide();
 
                 let isValid = true;
@@ -67,18 +117,13 @@ function ControlWeb() {
                     isValid = false;
                 }
 
+                // Validación de username (obligatorio)
+                if (!cw.validarCampoUsername($("#username"))) {
+                    isValid = false;
+                }
+
                 // Validación de contraseña (obligatorio, mínimo 8 caracteres)
                 if (!cw.validarCampoPassword($("#pwd"), 8)) {
-                    isValid = false;
-                }
-
-                // Validación de nombre (opcional, pero si se proporciona debe ser válido)
-                if (nombre && !cw.validarCampoNombre($("#nombre"))) {
-                    isValid = false;
-                }
-
-                // Validación de apellidos (opcional, pero si se proporciona debe ser válido)
-                if (apellidos && !cw.validarCampoNombre($("#apellidos"))) {
                     isValid = false;
                 }
 
@@ -102,7 +147,7 @@ function ControlWeb() {
                     btnRegistro.find('.btn-spinner').hide();
                 };
 
-                rest.registrarUsuario(email, pwd, nombre, apellidos, restaurarBoton);
+                rest.registrarUsuario(email, username, pwd, restaurarBoton);
             });
 
             $("#btnMostrarLogin").on("click", function (e) {
@@ -260,12 +305,24 @@ function ControlWeb() {
             let urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('google') === 'new_user') {
                 let email = urlParams.get('email');
-                let nombre = urlParams.get('nombre');
-                if (email && nombre) {
+                if (email) {
                     console.log("📝 Detectado nuevo usuario Google, mostrando modal sobre login");
                     setTimeout(() => {
-                        cw.mostrarModalPasswordGoogle(decodeURIComponent(email), decodeURIComponent(nombre));
+                        cw.mostrarModalPasswordGoogle(decodeURIComponent(email));
                     }, 500);
+                }
+            }
+
+            // Verificar si viene de un registro exitoso con Google
+            if (urlParams.get('registroExitoso') === 'true') {
+                let email = urlParams.get('email');
+                if (email) {
+                    // Pre-rellenar el email en el formulario de login
+                    $("#emailLogin").val(decodeURIComponent(email));
+                    cw.mostrarMensajeExito("¡Registro completado exitosamente! Ya puedes iniciar sesión con tu cuenta de Google.");
+
+                    // Limpiar la URL de los parámetros
+                    window.history.replaceState({}, document.title, "/?view=login");
                 }
             }
 
@@ -304,13 +361,62 @@ function ControlWeb() {
             }
         });
 
+        // Validación en tiempo real de username en modal de Google REGISTRO
+        $(document).off("input", "#googleUsernameReg").on("input", "#googleUsernameReg", function() {
+            const username = $(this).val().trim();
+            const $field = $(this);
+            const $availability = $(".username-availability-google");
+
+            $field.removeClass("is-invalid is-valid");
+            $availability.hide();
+
+            if (username.length === 0) return;
+
+            if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+                $field.addClass("is-invalid");
+                $field.siblings(".invalid-feedback").show();
+                return;
+            }
+
+            $availability.html('<i class="fas fa-spinner fa-spin"></i> Verificando disponibilidad...').show();
+
+            clearTimeout(cw.usernameGoogleTimeout);
+            cw.usernameGoogleTimeout = setTimeout(function() {
+                $.getJSON("/verificarUsername/" + encodeURIComponent(username), function(data) {
+                    if (data.disponible) {
+                        $field.addClass("is-valid");
+                        $availability.html('<span style="color: #22c55e;"><i class="fas fa-check-circle"></i> Disponible</span>').show();
+                    } else {
+                        $field.addClass("is-invalid");
+                        $availability.html('<span style="color: #ef4444;"><i class="fas fa-times-circle"></i> No disponible</span>').show();
+                    }
+                }).fail(function() {
+                    $availability.hide();
+                });
+            }, 500);
+        });
+
         // Handler para enviar contraseña de Google REGISTRO
         $(document).off("submit", "#formPasswordGoogleReg").on("submit", "#formPasswordGoogleReg", function(e) {
             e.preventDefault();
 
+            const username = $("#googleUsernameReg").val().trim();
             const password = $("#googlePasswordReg").val();
 
-            console.log("📝 [REGISTRO] Enviando contraseña para completar registro Google");
+            console.log("📝 [REGISTRO] Enviando datos para completar registro Google");
+
+            // Validar username
+            if (!username || !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+                $("#googleUsernameReg").addClass("is-invalid");
+                $("#googleUsernameReg").siblings(".invalid-feedback").show();
+                cw.mostrarMensajeError("El nombre de usuario debe tener entre 3 y 20 caracteres");
+                return;
+            }
+
+            if (!$("#googleUsernameReg").hasClass("is-valid")) {
+                cw.mostrarMensajeError("Por favor, elige un nombre de usuario disponible");
+                return;
+            }
 
             // Validar contraseña
             if (!password || password.length < 8) {
@@ -330,7 +436,7 @@ function ControlWeb() {
             fetch('/completarRegistroGoogle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: password }),
+                body: JSON.stringify({ username: username, password: password }),
                 credentials: 'same-origin'
             })
             .then(response => {
@@ -343,19 +449,15 @@ function ControlWeb() {
                 if (data.success) {
                     console.log("✅ Registro Google completado exitosamente");
 
-                    // Establecer cookies
-                    $.cookie("nick", data.email);
-                    $.cookie("userName", data.nombre);
-
                     // Cerrar modal
                     $("#modalPasswordGoogleRegistro").modal('hide');
 
                     // Mostrar mensaje de éxito
-                    cw.mostrarMensajeExito("¡Registro completado! Bienvenido, " + data.nombre);
+                    cw.mostrarMensajeExito("¡Registro completado! Redirigiendo al login...");
 
                     setTimeout(function() {
-                        // Redirigir a página principal
-                        window.location.href = "/?google=success";
+                        // Redirigir a página de login
+                        window.location.href = "/?view=login&registroExitoso=true&email=" + encodeURIComponent(data.email);
                     }, 1500);
                 } else {
                     console.error("❌ Error al completar registro:", data.error);
@@ -379,7 +481,7 @@ function ControlWeb() {
         });
     };
 
-    this.mostrarModalPasswordGoogleRegistro = function(email, nombre) {
+    this.mostrarModalPasswordGoogleRegistro = function(email) {
         console.log("📝 Mostrando modal de contraseña en REGISTRO para:", email);
 
         // Asegurar que los handlers están configurados
@@ -387,13 +489,15 @@ function ControlWeb() {
 
         // Rellenar información del usuario
         $("#googleEmailReg").text(email);
-        $("#googleNameReg").text(nombre || email);
 
         // Limpiar formulario
+        $("#googleUsernameReg").val('');
+        $("#googleUsernameReg").removeClass("is-invalid is-valid");
         $("#googlePasswordReg").val('');
         $("#googlePasswordStrengthReg").hide();
         $("#googlePasswordReg").removeClass("is-invalid is-valid");
         $(".invalid-feedback").hide();
+        $(".username-availability-google").hide();
 
         // Restaurar botón
         const btn = $("#btnConfirmPasswordGoogleReg");
@@ -404,9 +508,9 @@ function ControlWeb() {
         // Mostrar el modal
         $("#modalPasswordGoogleRegistro").modal('show');
 
-        // Dar foco al campo de contraseña
+        // Dar foco al campo de username
         $("#modalPasswordGoogleRegistro").on('shown.bs.modal', function () {
-            $("#googlePasswordReg").focus();
+            $("#googleUsernameReg").focus();
         });
     };
 
@@ -441,14 +545,63 @@ function ControlWeb() {
             }
         });
 
+        // Validación en tiempo real de username en modal de Google LOGIN
+        $(document).off("input", "#googleUsername").on("input", "#googleUsername", function() {
+            const username = $(this).val().trim();
+            const $field = $(this);
+            const $availability = $(".username-availability-google-login");
+
+            $field.removeClass("is-invalid is-valid");
+            $availability.hide();
+
+            if (username.length === 0) return;
+
+            if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+                $field.addClass("is-invalid");
+                $field.siblings(".invalid-feedback").show();
+                return;
+            }
+
+            $availability.html('<i class="fas fa-spinner fa-spin"></i> Verificando disponibilidad...').show();
+
+            clearTimeout(cw.usernameGoogleLoginTimeout);
+            cw.usernameGoogleLoginTimeout = setTimeout(function() {
+                $.getJSON("/verificarUsername/" + encodeURIComponent(username), function(data) {
+                    if (data.disponible) {
+                        $field.addClass("is-valid");
+                        $availability.html('<span style="color: #22c55e;"><i class="fas fa-check-circle"></i> Disponible</span>').show();
+                    } else {
+                        $field.addClass("is-invalid");
+                        $availability.html('<span style="color: #ef4444;"><i class="fas fa-times-circle"></i> No disponible</span>').show();
+                    }
+                }).fail(function() {
+                    $availability.hide();
+                });
+            }, 500);
+        });
+
         // Handler para enviar contraseña de Google (usar delegación de eventos)
         $(document).off("submit", "#formPasswordGoogle").on("submit", "#formPasswordGoogle", function(e) {
             e.preventDefault();
 
+            const username = $("#googleUsername").val().trim();
             const password = $("#googlePassword").val();
             const email = $("#googleEmail").text();
 
-            console.log("📝 Handler activado - Password:", password ? "presente" : "vacío", "Email:", email);
+            console.log("📝 Handler activado - Username:", username, "Password:", password ? "presente" : "vacío", "Email:", email);
+
+            // Validar username
+            if (!username || !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+                $("#googleUsername").addClass("is-invalid");
+                $("#googleUsername").siblings(".invalid-feedback").show();
+                cw.mostrarMensajeError("El nombre de usuario debe tener entre 3 y 20 caracteres");
+                return;
+            }
+
+            if (!$("#googleUsername").hasClass("is-valid")) {
+                cw.mostrarMensajeError("Por favor, elige un nombre de usuario disponible");
+                return;
+            }
 
             // Validar contraseña
             if (!password || password.length < 8) {
@@ -464,7 +617,7 @@ function ControlWeb() {
             btn.find('.btn-text').hide();
             btn.find('.btn-spinner').show();
 
-            console.log("📝 Enviando contraseña para completar registro Google");
+            console.log("📝 Enviando datos para completar registro Google");
             console.log("📝 URL:", window.location.origin + '/completarRegistroGoogle');
 
             // Enviar al servidor
@@ -473,7 +626,7 @@ function ControlWeb() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ password: password }),
+                body: JSON.stringify({ username: username, password: password }),
                 credentials: 'same-origin' // Importante para mantener la sesión
             })
             .then(response => {
@@ -488,13 +641,13 @@ function ControlWeb() {
 
                     // Establecer cookies
                     $.cookie("nick", data.email);
-                    $.cookie("userName", data.nombre);
+                    $.cookie("userName", data.username);
 
                     // Cerrar modal
                     $("#modalPasswordGoogle").modal('hide');
 
                     // Mostrar mensaje de éxito
-                    cw.mostrarMensajeExito("¡Registro completado! Bienvenido, " + data.nombre);
+                    cw.mostrarMensajeExito("¡Registro completado! Bienvenido, " + data.username);
 
                     setTimeout(function() {
                         // Recargar la página para refrescar la sesión
@@ -565,7 +718,6 @@ function ControlWeb() {
         let error = urlParams.get('error');
         let googleSuccess = urlParams.get('google');
         let message = urlParams.get('message');
-        let nombre = urlParams.get('nombre');
 
         // Verificar si debe mostrar registro directamente
         let view = urlParams.get('view');
@@ -604,9 +756,7 @@ function ControlWeb() {
                 console.log('✅ Sesión válida confirmada:', userData.nick);
 
                 // Actualizar cookies con datos frescos del servidor
-                let displayName = (userData.nombre && userData.apellidos)
-                    ? `${userData.nombre} ${userData.apellidos}`
-                    : userData.nombre || userData.nick;
+                let displayName = userData.username || userData.nick.split('@')[0];
                 $.cookie("nick", userData.nick, { path: '/' });
                 $.cookie("userName", displayName, { path: '/' });
 
@@ -686,10 +836,12 @@ function ControlWeb() {
                 // Usuario Google ya existe
                 else if (googleSuccess === 'already_exists' && email) {
                     cw.mostrarMensajeError("El correo " + decodeURIComponent(email) + " ya tiene una cuenta. Por favor, inicia sesión.");
+                    // Pre-rellenar el email en el formulario de login
+                    $("#emailLogin").val(decodeURIComponent(email));
                 }
                 // Caso especial: Nuevo usuario de Google necesita definir contraseña en LOGIN
                 else if (googleSuccess === 'new_user' && email) {
-                    cw.mostrarModalPasswordGoogle(email, nombre);
+                    cw.mostrarModalPasswordGoogle(email);
                 }
 
                 // Limpiar la URL después de mostrar el mensaje (excepto para new_user)
@@ -700,12 +852,12 @@ function ControlWeb() {
         }
     };
 
-    this.mostrarModalPasswordGoogle = function(email, nombre) {
+    this.mostrarModalPasswordGoogle = function(email) {
         // Verificar que el modal existe (solo disponible si se cargó login.html)
         if ($("#modalPasswordGoogle").length === 0) {
             console.warn("⚠️ Modal de contraseña no disponible, recargando página...");
             setTimeout(() => {
-                window.location.href = "/?google=new_user&email=" + encodeURIComponent(email) + "&nombre=" + encodeURIComponent(nombre || email);
+                window.location.href = "/?google=new_user&email=" + encodeURIComponent(email);
             }, 500);
             return;
         }
@@ -717,13 +869,15 @@ function ControlWeb() {
 
         // Rellenar información del usuario
         $("#googleEmail").text(email);
-        $("#googleName").text(nombre || email);
 
         // Limpiar formulario
+        $("#googleUsername").val('');
+        $("#googleUsername").removeClass("is-invalid is-valid");
         $("#googlePassword").val('');
         $("#googlePasswordStrength").hide();
         $("#googlePassword").removeClass("is-invalid is-valid");
         $(".invalid-feedback").hide();
+        $(".username-availability-google-login").hide();
 
         // Restaurar botón
         const btn = $("#btnConfirmPasswordGoogle");
@@ -734,9 +888,9 @@ function ControlWeb() {
         // Mostrar el modal
         $("#modalPasswordGoogle").modal('show');
 
-        // Dar foco al campo de contraseña después de que el modal se muestre
+        // Dar foco al campo de username después de que el modal se muestre
         $("#modalPasswordGoogle").on('shown.bs.modal', function () {
-            $("#googlePassword").focus();
+            $("#googleUsername").focus();
         });
     };
 
@@ -844,6 +998,34 @@ function ControlWeb() {
         if (!emailRegex.test(email)) {
             campo.addClass("is-invalid").removeClass("is-valid");
             campo.siblings(".invalid-feedback").text("Por favor, introduce un correo válido").show();
+            return false;
+        }
+
+        campo.removeClass("is-invalid").addClass("is-valid");
+        campo.siblings(".invalid-feedback").hide();
+        return true;
+    };
+
+    this.validarCampoUsername = function(campo) {
+        const username = campo.val().trim();
+        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+
+        if (!username) {
+            campo.addClass("is-invalid").removeClass("is-valid");
+            campo.siblings(".invalid-feedback").text("El nombre de usuario es obligatorio").show();
+            return false;
+        }
+
+        if (!usernameRegex.test(username)) {
+            campo.addClass("is-invalid").removeClass("is-valid");
+            campo.siblings(".invalid-feedback").text("El nombre de usuario debe tener entre 3 y 20 caracteres y solo puede contener letras, números y guiones bajos").show();
+            return false;
+        }
+
+        // Verificar si tiene la clase is-valid (disponible)
+        if (!campo.hasClass("is-valid")) {
+            campo.addClass("is-invalid").removeClass("is-valid");
+            campo.siblings(".invalid-feedback").text("Verifica la disponibilidad del nombre de usuario").show();
             return false;
         }
 

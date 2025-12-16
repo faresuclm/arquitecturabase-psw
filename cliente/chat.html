@@ -1153,11 +1153,7 @@
                     const data = await response.json();
                     return {
                         email: data.nick,
-                        nombre: data.nombre,
-                        apellidos: data.apellidos,
-                        nombreCompleto: (data.nombre && data.apellidos)
-                            ? `${data.nombre} ${data.apellidos}`
-                            : data.nombre || data.nick
+                        username: data.username || data.nick.split('@')[0]
                     };
                 }
             } catch (error) {
@@ -1247,8 +1243,8 @@
                 div.className = 'usuario-item';
                 div.dataset.email = miembro;
 
-                const nombreCompleto = nombresUsuarios[miembro]?.nombreCompleto || miembro.split('@')[0];
-                const iniciales = obtenerInicialesDeNombre(nombreCompleto);
+                const username = nombresUsuarios[miembro]?.username || miembro.split('@')[0];
+                const iniciales = obtenerInicialesDeNombre(username);
                 const esTu = miembro === usuarioActual.email;
                 const isOnline = usuariosOnline.has(miembro);
 
@@ -1262,7 +1258,7 @@
                         <span class="usuario-status"></span>
                     </div>
                     <div class="usuario-info">
-                        <div class="usuario-nombre">${nombreCompleto}${esTu ? ' (tú)' : ''}</div>
+                        <div class="usuario-nombre">${username}${esTu ? ' (tú)' : ''}</div>
                         <div class="usuario-estado">${isOnline || esTu ? 'En línea' : 'Desconectado'}</div>
                     </div>
                 `;
@@ -1317,7 +1313,7 @@
                 socket.emit('unirseGrupo', {
                     grupoId: grupoActual.id,
                     usuarioEmail: usuarioActual.email,
-                    usuarioNombre: usuarioActual.nombreCompleto
+                    usuarioUsername: usuarioActual.username
                 });
 
                 // Marcar usuario actual como online
@@ -1536,7 +1532,7 @@
                     isTyping = true;
                     socket.emit('escribiendo', {
                         grupoId: grupoActual.id,
-                        nombreUsuario: usuarioActual.nombreCompleto
+                        nombreUsuario: usuarioActual.username
                     });
                 }
 
@@ -1549,7 +1545,7 @@
                         isTyping = false;
                         socket.emit('dejoDeEscribir', {
                             grupoId: grupoActual.id,
-                            nombreUsuario: usuarioActual.nombreCompleto
+                            nombreUsuario: usuarioActual.username
                         });
                     }
                 }, 1000);
@@ -1583,7 +1579,7 @@
                     isTyping = false;
                     socket.emit('dejoDeEscribir', {
                         grupoId: grupoActual.id,
-                        nombreUsuario: usuarioActual.nombreCompleto
+                        nombreUsuario: usuarioActual.username
                     });
                 }
             });
@@ -1599,7 +1595,7 @@
             const mensajeObj = {
                 grupoId: grupoActual.id,
                 autor: usuarioActual.email,
-                nombreAutor: usuarioActual.nombreCompleto,
+                nombreAutor: usuarioActual.username,
                 contenido: mensaje
             };
 
@@ -1619,7 +1615,7 @@
                 isTyping = false;
                 socket.emit('dejoDeEscribir', {
                     grupoId: grupoActual.id,
-                    nombreUsuario: usuarioActual.nombreCompleto
+                    nombreUsuario: usuarioActual.username
                 });
             }
         }
