@@ -474,19 +474,13 @@ function Sistema() {
 
             // Verificar si el usuario es miembro
             if (grupo.miembros.includes(emailUsuario)) {
-                // No permitir que el creador salga del grupo si no es un grupo predeterminado
-                if (grupo.creador === emailUsuario && grupo.creador !== "sistema") {
-                    console.warn(`⚠️ El creador ${emailUsuario} no puede salir del grupo ${grupo.nombre}`);
-                    if (callback) callback({ id: -1, error: "El creador no puede abandonar el grupo" });
-                    return;
-                }
-
+                // Eliminar al usuario de la lista de miembros
                 grupo.miembros = grupo.miembros.filter(m => m !== emailUsuario);
-                console.log(`✅ Usuario ${emailUsuario} saliendo del grupo ${grupo.nombre}`);
+                console.log(`✅ Usuario ${emailUsuario} abandonando el grupo ${grupo.nombre}`);
 
                 modelo.cad.actualizarGrupo(grupo, function(res) {
                     if (res && res.id !== -1) {
-                        console.log(`✅ Usuario ${emailUsuario} salió exitosamente del grupo ${grupo.nombre}`);
+                        console.log(`✅ Usuario ${emailUsuario} abandonó exitosamente el grupo ${grupo.nombre}`);
                     }
                     if (callback) callback(res);
                 });

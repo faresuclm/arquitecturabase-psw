@@ -296,7 +296,7 @@
             font-size: 14px;
         }
 
-        .btn-salir:hover {
+        .btn-abandonar:hover {
             box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
         }
 
@@ -704,12 +704,10 @@
                             <i class="fas fa-comments"></i>
                             Abrir Chat
                         </button>
-                        ${!esCreador && grupo.creador !== "sistema" ? `
-                            <button class="btn-grupo-accion btn-salir" data-grupo-id="${grupo.id}" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); flex: 0;">
-                                <i class="fas fa-sign-out-alt"></i>
-                                Salir
-                            </button>
-                        ` : ''}
+                        <button class="btn-grupo-accion btn-abandonar" data-grupo-id="${grupo.id}" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); flex: 0;">
+                            <i class="fas fa-sign-out-alt"></i>
+                            Abandonar
+                        </button>
                     ` : `
                         <button class="btn-grupo-accion btn-unirse" data-grupo-id="${grupo.id}" style="flex: 1;">
                             <i class="fas fa-user-plus"></i>
@@ -721,7 +719,7 @@
 
             // Agregar event listeners a los botones
             const btnAbrir = card.querySelector('.btn-abrir');
-            const btnSalir = card.querySelector('.btn-salir');
+            const btnAbandonar = card.querySelector('.btn-abandonar');
             const btnUnirse = card.querySelector('.btn-unirse');
 
             if (btnAbrir) {
@@ -731,10 +729,10 @@
                 });
             }
 
-            if (btnSalir) {
-                btnSalir.addEventListener('click', (e) => {
+            if (btnAbandonar) {
+                btnAbandonar.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    salirDelGrupo(grupo.id, grupo.nombre);
+                    abandonarGrupo(grupo.id, grupo.nombre);
                 });
             }
 
@@ -789,13 +787,13 @@
             }
         }
 
-        async function salirDelGrupo(grupoId, nombreGrupo) {
+        async function abandonarGrupo(grupoId, nombreGrupo) {
             try {
-                if (!confirm(`¿Estás seguro de que quieres salir del grupo "${nombreGrupo}"?`)) {
+                if (!confirm(`¿Estás seguro de que quieres abandonar el grupo "${nombreGrupo}"?\n\nPodrás volver a unirte cuando quieras.`)) {
                     return;
                 }
 
-                console.log(`📝 Intentando salir del grupo ${nombreGrupo}...`);
+                console.log(`📝 Intentando abandonar el grupo ${nombreGrupo}...`);
 
                 const response = await fetch(`/api/grupos/${grupoId}/salir`, {
                     method: 'POST',
@@ -808,19 +806,19 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    console.log(`✅ Has salido del grupo ${nombreGrupo}`);
+                    console.log(`✅ Has abandonado el grupo ${nombreGrupo}`);
 
                     // Mostrar mensaje de éxito
-                    mostrarNotificacion(`Has salido del grupo "${nombreGrupo}"`, 'success');
+                    mostrarNotificacion(`Has abandonado el grupo "${nombreGrupo}"`, 'success');
 
                     // Recargar grupos para actualizar la UI
                     await cargarGrupos();
                 } else {
-                    throw new Error(data.error || 'Error al salir del grupo');
+                    throw new Error(data.error || 'Error al abandonar el grupo');
                 }
             } catch (error) {
-                console.error('Error al salir del grupo:', error);
-                mostrarNotificacion(error.message || 'Error al salir del grupo', 'error');
+                console.error('Error al abandonar el grupo:', error);
+                mostrarNotificacion(error.message || 'Error al abandonar el grupo', 'error');
             }
         }
 

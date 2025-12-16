@@ -336,7 +336,7 @@ app.post("/api/grupos/:grupoId/salir", haIniciado, function(request, response) {
     const grupoId = request.params.grupoId;
     const emailUsuario = request.user.email;
 
-    console.log(`📝 Solicitud de salida: Usuario ${emailUsuario} <- Grupo ${grupoId}`);
+    console.log(`📝 Solicitud para abandonar grupo: Usuario ${emailUsuario} <- Grupo ${grupoId}`);
 
     sistema.salirDeGrupo(grupoId, emailUsuario, function(grupo) {
         if (!grupo) {
@@ -348,16 +348,16 @@ app.post("/api/grupos/:grupoId/salir", haIniciado, function(request, response) {
         }
         if (grupo.id === -1) {
             console.error(`❌ Error: ${grupo.error}`);
-            return response.status(403).json({
+            return response.status(500).json({
                 success: false,
-                error: grupo.error || "No puedes salir de este grupo"
+                error: grupo.error || "Error al abandonar el grupo"
             });
         }
-        console.log(`✅ Usuario ${emailUsuario} salió exitosamente del grupo ${grupoId}`);
+        console.log(`✅ Usuario ${emailUsuario} abandonó exitosamente el grupo ${grupoId}`);
         response.json({
             success: true,
             grupo: grupo,
-            mensaje: "Has salido del grupo exitosamente"
+            mensaje: "Has abandonado el grupo exitosamente"
         });
     });
 });
