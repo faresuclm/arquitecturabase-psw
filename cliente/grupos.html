@@ -260,6 +260,46 @@
             transform: translateY(0);
         }
 
+        .btn-grupo-accion {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+        }
+
+        .btn-grupo-accion:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-grupo-accion:active {
+            transform: translateY(0);
+        }
+
+        .btn-grupo-accion:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-grupo-accion i {
+            font-size: 14px;
+        }
+
+        .btn-salir:hover {
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .grupos-grid {
@@ -613,9 +653,9 @@
         function crearTarjetaGrupo(grupo) {
             const card = document.createElement('div');
             card.className = 'grupo-card';
-            card.onclick = () => abrirGrupo(grupo.id);
 
             const esMiembro = grupo.miembros && grupo.miembros.includes(usuarioActual.email);
+            const esCreador = grupo.creador === usuarioActual.email;
             const numMiembros = grupo.miembros ? grupo.miembros.length : 0;
 
             let ultimoMensajeHTML = '';
@@ -639,7 +679,10 @@
                     <div class="grupo-info">
                         <div class="grupo-nombre">${escaparHTML(grupo.nombre)}</div>
                         <div class="grupo-descripcion">${escaparHTML(grupo.descripcion || 'Sin descripción')}</div>
-                        ${esMiembro ? '<span class="grupo-badge">Miembro</span>' : ''}
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            ${esMiembro ? '<span class="grupo-badge">Miembro</span>' : ''}
+                            ${esCreador ? '<span class="grupo-badge" style="background: #fef3c7; color: #f59e0b;">Creador</span>' : ''}
+                        </div>
                     </div>
                 </div>
                 ${ultimoMensajeHTML}
@@ -655,41 +698,195 @@
                         </div>
                     ` : ''}
                 </div>
+                <div style="display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                    ${esMiembro ? `
+                        <button class="btn-grupo-accion btn-abrir" data-grupo-id="${grupo.id}" style="flex: 1;">
+                            <i class="fas fa-comments"></i>
+                            Abrir Chat
+                        </button>
+                        ${!esCreador && grupo.creador !== "sistema" ? `
+                            <button class="btn-grupo-accion btn-salir" data-grupo-id="${grupo.id}" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); flex: 0;">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Salir
+                            </button>
+                        ` : ''}
+                    ` : `
+                        <button class="btn-grupo-accion btn-unirse" data-grupo-id="${grupo.id}" style="flex: 1;">
+                            <i class="fas fa-user-plus"></i>
+                            Unirse al Grupo
+                        </button>
+                    `}
+                </div>
             `;
+
+            // Agregar event listeners a los botones
+            const btnAbrir = card.querySelector('.btn-abrir');
+            const btnSalir = card.querySelector('.btn-salir');
+            const btnUnirse = card.querySelector('.btn-unirse');
+
+            if (btnAbrir) {
+                btnAbrir.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    abrirGrupo(grupo.id);
+                });
+            }
+
+            if (btnSalir) {
+                btnSalir.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    salirDelGrupo(grupo.id, grupo.nombre);
+                });
+            }
+
+            if (btnUnirse) {
+                btnUnirse.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    unirseAlGrupo(grupo.id, grupo.nombre);
+                });
+            }
 
             return card;
         }
 
         async function abrirGrupo(grupoId) {
             try {
-                // Verificar si es miembro o unirse al grupo
-                const response = await fetch(`/api/grupos/${grupoId}`, {
-                    credentials: 'include'
-                });
-
-                if (response.ok) {
-                    const grupo = await response.json();
-
-                    // Si no es miembro, unirse primero
-                    if (!grupo.miembros.includes(usuarioActual.email)) {
-                        const joinResponse = await fetch(`/api/grupos/${grupoId}/unirse`, {
-                            method: 'POST',
-                            credentials: 'include'
-                        });
-
-                        if (!joinResponse.ok) {
-                            alert('No se pudo unir al grupo');
-                            return;
-                        }
-                    }
-
-                    // Redirigir al chat
-                    window.location.href = `/cliente/chat.html?id=${grupoId}`;
-                }
+                // Solo redirigir al chat si ya es miembro
+                window.location.href = `/cliente/chat.html?id=${grupoId}`;
             } catch (error) {
                 console.error('Error al abrir grupo:', error);
                 alert('Error al abrir el grupo');
             }
+        }
+
+        async function unirseAlGrupo(grupoId, nombreGrupo) {
+            try {
+                console.log(`📝 Intentando unirse al grupo ${nombreGrupo}...`);
+
+                const response = await fetch(`/api/grupos/${grupoId}/unirse`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    console.log(`✅ Te has unido al grupo ${nombreGrupo}`);
+
+                    // Mostrar mensaje de éxito
+                    mostrarNotificacion(`Te has unido al grupo "${nombreGrupo}"`, 'success');
+
+                    // Recargar grupos para actualizar la UI
+                    await cargarGrupos();
+                } else {
+                    throw new Error(data.error || 'Error al unirse al grupo');
+                }
+            } catch (error) {
+                console.error('Error al unirse al grupo:', error);
+                mostrarNotificacion(error.message || 'Error al unirse al grupo', 'error');
+            }
+        }
+
+        async function salirDelGrupo(grupoId, nombreGrupo) {
+            try {
+                if (!confirm(`¿Estás seguro de que quieres salir del grupo "${nombreGrupo}"?`)) {
+                    return;
+                }
+
+                console.log(`📝 Intentando salir del grupo ${nombreGrupo}...`);
+
+                const response = await fetch(`/api/grupos/${grupoId}/salir`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    console.log(`✅ Has salido del grupo ${nombreGrupo}`);
+
+                    // Mostrar mensaje de éxito
+                    mostrarNotificacion(`Has salido del grupo "${nombreGrupo}"`, 'success');
+
+                    // Recargar grupos para actualizar la UI
+                    await cargarGrupos();
+                } else {
+                    throw new Error(data.error || 'Error al salir del grupo');
+                }
+            } catch (error) {
+                console.error('Error al salir del grupo:', error);
+                mostrarNotificacion(error.message || 'Error al salir del grupo', 'error');
+            }
+        }
+
+        function mostrarNotificacion(mensaje, tipo = 'info') {
+            // Crear elemento de notificación
+            const notif = document.createElement('div');
+            notif.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 16px 24px;
+                background: ${tipo === 'success' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' :
+                             tipo === 'error' ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' :
+                             'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'};
+                color: white;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+                z-index: 10000;
+                font-weight: 600;
+                font-size: 14px;
+                max-width: 400px;
+                animation: slideIn 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            `;
+
+            const icon = tipo === 'success' ? '✅' : tipo === 'error' ? '❌' : 'ℹ️';
+            notif.innerHTML = `<span style="font-size: 20px;">${icon}</span><span>${mensaje}</span>`;
+
+            document.body.appendChild(notif);
+
+            // Agregar animación
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                @keyframes slideOut {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Eliminar después de 4 segundos
+            setTimeout(() => {
+                notif.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(notif);
+                    document.head.removeChild(style);
+                }, 300);
+            }, 4000);
         }
 
         function configurarEventos() {

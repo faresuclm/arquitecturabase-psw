@@ -336,11 +336,29 @@ app.post("/api/grupos/:grupoId/salir", haIniciado, function(request, response) {
     const grupoId = request.params.grupoId;
     const emailUsuario = request.user.email;
 
+    console.log(`📝 Solicitud de salida: Usuario ${emailUsuario} <- Grupo ${grupoId}`);
+
     sistema.salirDeGrupo(grupoId, emailUsuario, function(grupo) {
         if (!grupo) {
-            return response.status(404).json({ error: "Grupo no encontrado" });
+            console.error(`❌ Error: Grupo ${grupoId} no encontrado`);
+            return response.status(404).json({
+                success: false,
+                error: "Grupo no encontrado"
+            });
         }
-        response.json(grupo);
+        if (grupo.id === -1) {
+            console.error(`❌ Error: ${grupo.error}`);
+            return response.status(403).json({
+                success: false,
+                error: grupo.error || "No puedes salir de este grupo"
+            });
+        }
+        console.log(`✅ Usuario ${emailUsuario} salió exitosamente del grupo ${grupoId}`);
+        response.json({
+            success: true,
+            grupo: grupo,
+            mensaje: "Has salido del grupo exitosamente"
+        });
     });
 });
 
@@ -703,20 +721,86 @@ app.post("/restablecerPassword", function (request, response) {
 });
 
 // ===================== CONFIGURACIÓN DE SOCKET.IO =====================
+// Estructura para rastrear usuarios online por grupo
+// { grupoId: { socketId: { email, nombre } } }
+const usuariosOnlinePorGrupo = {};
 
 io.on('connection', (socket) => {
     console.log('🔌 Usuario conectado:', socket.id);
 
     // Unirse a un grupo (sala)
-    socket.on('unirseGrupo', (grupoId) => {
+    socket.on('unirseGrupo', (data) => {
+        const grupoId = typeof data === 'string' ? data : data.grupoId;
+        const usuarioEmail = data.usuarioEmail;
+        const usuarioNombre = data.usuarioNombre;
+
         socket.join(grupoId);
-        console.log(`👥 Socket ${socket.id} se unió al grupo ${grupoId}`);
+
+        // Guardar información del usuario
+        socket.grupoId = grupoId;
+        socket.usuarioEmail = usuarioEmail;
+        socket.usuarioNombre = usuarioNombre;
+
+        // Registrar usuario online en el grupo
+        if (!usuariosOnlinePorGrupo[grupoId]) {
+            usuariosOnlinePorGrupo[grupoId] = {};
+        }
+        usuariosOnlinePorGrupo[grupoId][socket.id] = {
+            email: usuarioEmail,
+            nombre: usuarioNombre
+        };
+
+        console.log(`👥 Socket ${socket.id} (${usuarioEmail}) se unió al grupo ${grupoId}`);
+
+        // Notificar a otros usuarios que este usuario se conectó
+        socket.to(grupoId).emit('usuarioConectado', {
+            grupoId: grupoId,
+            email: usuarioEmail,
+            nombre: usuarioNombre
+        });
+
+        // Enviar lista actualizada de usuarios online a todos
+        const usuariosOnline = Object.values(usuariosOnlinePorGrupo[grupoId] || {})
+            .map(u => u.email);
+        io.to(grupoId).emit('usuariosOnlineActualizados', {
+            grupoId: grupoId,
+            usuarios: usuariosOnline
+        });
+
+        console.log(`📊 Usuarios online en grupo ${grupoId}:`, usuariosOnline);
     });
 
     // Salir de un grupo
     socket.on('salirGrupo', (grupoId) => {
         socket.leave(grupoId);
-        console.log(`👋 Socket ${socket.id} salió del grupo ${grupoId}`);
+
+        // Remover usuario de la lista de online
+        if (usuariosOnlinePorGrupo[grupoId] && usuariosOnlinePorGrupo[grupoId][socket.id]) {
+            const usuarioInfo = usuariosOnlinePorGrupo[grupoId][socket.id];
+            delete usuariosOnlinePorGrupo[grupoId][socket.id];
+
+            console.log(`👋 Socket ${socket.id} (${usuarioInfo.email}) salió del grupo ${grupoId}`);
+
+            // Notificar a otros usuarios
+            socket.to(grupoId).emit('usuarioDesconectado', {
+                grupoId: grupoId,
+                email: usuarioInfo.email,
+                nombre: usuarioInfo.nombre
+            });
+
+            // Enviar lista actualizada
+            const usuariosOnline = Object.values(usuariosOnlinePorGrupo[grupoId] || {})
+                .map(u => u.email);
+            io.to(grupoId).emit('usuariosOnlineActualizados', {
+                grupoId: grupoId,
+                usuarios: usuariosOnline
+            });
+
+            // Limpiar grupo si está vacío
+            if (Object.keys(usuariosOnlinePorGrupo[grupoId]).length === 0) {
+                delete usuariosOnlinePorGrupo[grupoId];
+            }
+        }
     });
 
     // Recibir y broadcast mensaje
@@ -755,6 +839,35 @@ io.on('connection', (socket) => {
     // Desconexión
     socket.on('disconnect', () => {
         console.log('🔌 Usuario desconectado:', socket.id);
+
+        // Limpiar usuario de todos los grupos
+        const grupoId = socket.grupoId;
+        if (grupoId && usuariosOnlinePorGrupo[grupoId] && usuariosOnlinePorGrupo[grupoId][socket.id]) {
+            const usuarioInfo = usuariosOnlinePorGrupo[grupoId][socket.id];
+            delete usuariosOnlinePorGrupo[grupoId][socket.id];
+
+            // Notificar a otros usuarios
+            socket.to(grupoId).emit('usuarioDesconectado', {
+                grupoId: grupoId,
+                email: usuarioInfo.email,
+                nombre: usuarioInfo.nombre
+            });
+
+            // Enviar lista actualizada
+            const usuariosOnline = Object.values(usuariosOnlinePorGrupo[grupoId] || {})
+                .map(u => u.email);
+            io.to(grupoId).emit('usuariosOnlineActualizados', {
+                grupoId: grupoId,
+                usuarios: usuariosOnline
+            });
+
+            // Limpiar grupo si está vacío
+            if (Object.keys(usuariosOnlinePorGrupo[grupoId]).length === 0) {
+                delete usuariosOnlinePorGrupo[grupoId];
+            }
+
+            console.log(`🧹 Usuario ${usuarioInfo.email} eliminado del grupo ${grupoId}`);
+        }
     });
 });
 

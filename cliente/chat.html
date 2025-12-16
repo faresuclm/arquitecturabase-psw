@@ -333,10 +333,45 @@
             border-top: 1px solid #e2e8f0;
         }
 
+        .chat-input-form {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
         .chat-input-wrapper {
             display: flex;
             gap: 12px;
             align-items: flex-end;
+        }
+
+        .chat-input-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4px;
+            font-size: 12px;
+            color: #94a3b8;
+            min-height: 18px;
+        }
+
+        .char-counter {
+            transition: color 0.2s;
+        }
+
+        .char-counter.warning {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+
+        .char-counter.danger {
+            color: #ef4444;
+            font-weight: 700;
+        }
+
+        .input-hint {
+            font-size: 11px;
+            color: #cbd5e1;
         }
 
         .chat-input {
@@ -356,6 +391,43 @@
             outline: none;
             border-color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .chat-input.char-limit-warning {
+            border-color: #f59e0b;
+        }
+
+        .chat-input.char-limit-danger {
+            border-color: #ef4444;
+        }
+
+        .chat-input-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-input-action {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: #f1f5f9;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .btn-input-action:hover {
+            background: #e2e8f0;
+            color: #2563eb;
+        }
+
+        .btn-input-action i {
+            font-size: 16px;
         }
 
         .btn-send {
@@ -381,6 +453,10 @@
         .btn-send:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        .btn-send:active:not(:disabled) {
+            transform: translateY(0);
         }
 
         .btn-send i {
@@ -414,6 +490,21 @@
             font-size: 18px;
         }
 
+        .online-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 8px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-left: auto;
+        }
+
         .usuarios-list {
             flex: 1;
             overflow-y: auto;
@@ -426,7 +517,20 @@
             gap: 12px;
             padding: 12px;
             border-radius: 10px;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .usuario-item:hover {
+            background: #f8fafc;
+        }
+
+        .usuario-item.offline .usuario-status {
+            background: #94a3b8;
+        }
+
+        .usuario-item.offline .usuario-estado {
+            color: #94a3b8;
         }
 
         .usuario-avatar {
@@ -565,18 +669,30 @@
 
             <!-- Input para enviar mensajes -->
             <div class="chat-input-container">
-                <div class="chat-input-wrapper">
-                    <label for="mensajeInput" style="position: absolute; left: -9999px;">Escribe un mensaje</label>
-                    <textarea
-                        class="chat-input"
-                        id="mensajeInput"
-                        placeholder="Escribe un mensaje..."
-                        rows="1"
-                        aria-label="Escribe un mensaje"
-                    ></textarea>
-                    <button class="btn-send" id="btnEnviar" disabled aria-label="Enviar mensaje">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
+                <div class="chat-input-form">
+                    <div class="chat-input-meta">
+                        <span class="input-hint">Presiona Enter para enviar, Shift + Enter para nueva línea</span>
+                        <span class="char-counter" id="charCounter">0 / 1000</span>
+                    </div>
+                    <div class="chat-input-wrapper">
+                        <label for="mensajeInput" style="position: absolute; left: -9999px;">Escribe un mensaje</label>
+                        <textarea
+                            class="chat-input"
+                            id="mensajeInput"
+                            placeholder="Escribe un mensaje..."
+                            rows="1"
+                            maxlength="1000"
+                            aria-label="Escribe un mensaje"
+                        ></textarea>
+                        <div class="chat-input-actions">
+                            <button class="btn-input-action" id="btnLimpiar" title="Limpiar mensaje" aria-label="Limpiar mensaje">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="btn-send" id="btnEnviar" disabled aria-label="Enviar mensaje">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -587,6 +703,7 @@
                 <div class="sidebar-title">
                     <i class="fas fa-users"></i>
                     Miembros del Grupo
+                    <span class="online-badge" id="onlineBadge">0</span>
                 </div>
             </div>
             <div class="usuarios-list" id="usuariosList">
@@ -603,6 +720,8 @@
         let usuarioActual = null;
         let typingTimeout = null;
         let isTyping = false;
+        let usuariosOnline = new Set();
+        const MAX_CHARS = 1000;
 
         // Inicializar inmediatamente (ejecutar cuando el script se carga)
         (async function() {
@@ -868,9 +987,15 @@
             for (const miembro of grupoActual.miembros) {
                 const div = document.createElement('div');
                 div.className = 'usuario-item';
+                div.dataset.email = miembro;
 
                 const iniciales = obtenerIniciales(miembro);
                 const esTu = miembro === usuarioActual.email;
+                const isOnline = usuariosOnline.has(miembro);
+
+                if (!isOnline && !esTu) {
+                    div.classList.add('offline');
+                }
 
                 div.innerHTML = `
                     <div class="usuario-avatar" style="background: ${generarColorAvatar(miembro)};">
@@ -879,12 +1004,45 @@
                     </div>
                     <div class="usuario-info">
                         <div class="usuario-nombre">${miembro}${esTu ? ' (tú)' : ''}</div>
-                        <div class="usuario-estado">En línea</div>
+                        <div class="usuario-estado">${isOnline || esTu ? 'En línea' : 'Desconectado'}</div>
                     </div>
                 `;
 
                 usuariosList.appendChild(div);
             }
+
+            actualizarContadorOnline();
+        }
+
+        function actualizarContadorOnline() {
+            const badge = document.getElementById('onlineBadge');
+            const count = usuariosOnline.size + 1; // +1 por el usuario actual
+            if (badge) {
+                badge.textContent = count;
+            }
+        }
+
+        function actualizarEstadoUsuario(email, isOnline) {
+            const usuarioItem = document.querySelector(`.usuario-item[data-email="${email}"]`);
+            if (!usuarioItem) return;
+
+            const estadoDiv = usuarioItem.querySelector('.usuario-estado');
+
+            if (isOnline) {
+                usuariosOnline.add(email);
+                usuarioItem.classList.remove('offline');
+                if (estadoDiv) {
+                    estadoDiv.textContent = 'En línea';
+                }
+            } else {
+                usuariosOnline.delete(email);
+                usuarioItem.classList.add('offline');
+                if (estadoDiv) {
+                    estadoDiv.textContent = 'Desconectado';
+                }
+            }
+
+            actualizarContadorOnline();
         }
 
         function inicializarWebSocket() {
@@ -897,7 +1055,15 @@
                     grupoActual.descripcion || `${grupoActual.miembros.length} miembros`;
 
                 // Unirse a la sala del grupo
-                socket.emit('unirseGrupo', grupoActual.id);
+                socket.emit('unirseGrupo', {
+                    grupoId: grupoActual.id,
+                    usuarioEmail: usuarioActual.email,
+                    usuarioNombre: usuarioActual.nombreCompleto
+                });
+
+                // Marcar usuario actual como online
+                usuariosOnline.add(usuarioActual.email);
+                actualizarContadorOnline();
             });
 
             socket.on('disconnect', () => {
@@ -922,6 +1088,34 @@
             socket.on('usuarioDejoDeEscribir', (data) => {
                 if (data.grupoId === grupoActual.id) {
                     ocultarIndicadorEscritura();
+                }
+            });
+
+            // Usuario se conectó al grupo
+            socket.on('usuarioConectado', (data) => {
+                console.log('👋 Usuario conectado:', data);
+                if (data.grupoId === grupoActual.id && data.email !== usuarioActual.email) {
+                    actualizarEstadoUsuario(data.email, true);
+                }
+            });
+
+            // Usuario se desconectó del grupo
+            socket.on('usuarioDesconectado', (data) => {
+                console.log('👋 Usuario desconectado:', data);
+                if (data.grupoId === grupoActual.id && data.email !== usuarioActual.email) {
+                    actualizarEstadoUsuario(data.email, false);
+                }
+            });
+
+            // Lista de usuarios online actualizada
+            socket.on('usuariosOnlineActualizados', (data) => {
+                console.log('📋 Lista de usuarios online actualizada:', data);
+                if (data.grupoId === grupoActual.id) {
+                    usuariosOnline.clear();
+                    data.usuarios.forEach(email => {
+                        usuariosOnline.add(email);
+                    });
+                    cargarMiembrosGrupo();
                 }
             });
         }
@@ -1015,10 +1209,28 @@
             // Auto-resize del textarea
             const mensajeInput = document.getElementById('mensajeInput');
             const btnEnviar = document.getElementById('btnEnviar');
+            const btnLimpiar = document.getElementById('btnLimpiar');
+            const charCounter = document.getElementById('charCounter');
 
             mensajeInput.addEventListener('input', function() {
                 this.style.height = 'auto';
                 this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+
+                // Actualizar contador de caracteres
+                const length = this.value.length;
+                charCounter.textContent = `${length} / ${MAX_CHARS}`;
+
+                // Cambiar estilos según proximidad al límite
+                charCounter.classList.remove('warning', 'danger');
+                this.classList.remove('char-limit-warning', 'char-limit-danger');
+
+                if (length >= MAX_CHARS * 0.9) {
+                    charCounter.classList.add('danger');
+                    this.classList.add('char-limit-danger');
+                } else if (length >= MAX_CHARS * 0.8) {
+                    charCounter.classList.add('warning');
+                    this.classList.add('char-limit-warning');
+                }
 
                 // Habilitar/deshabilitar botón de enviar
                 btnEnviar.disabled = this.value.trim() === '';
@@ -1059,10 +1271,31 @@
 
             // Enviar mensaje al hacer clic en el botón
             btnEnviar.addEventListener('click', enviarMensaje);
+
+            // Limpiar mensaje
+            btnLimpiar.addEventListener('click', function() {
+                mensajeInput.value = '';
+                mensajeInput.style.height = 'auto';
+                charCounter.textContent = '0 / 1000';
+                charCounter.classList.remove('warning', 'danger');
+                mensajeInput.classList.remove('char-limit-warning', 'char-limit-danger');
+                btnEnviar.disabled = true;
+                mensajeInput.focus();
+
+                // Dejar de escribir si estaba escribiendo
+                if (isTyping) {
+                    isTyping = false;
+                    socket.emit('dejoDeEscribir', {
+                        grupoId: grupoActual.id,
+                        nombreUsuario: usuarioActual.nombreCompleto
+                    });
+                }
+            });
         }
 
         function enviarMensaje() {
             const mensajeInput = document.getElementById('mensajeInput');
+            const charCounter = document.getElementById('charCounter');
             const mensaje = mensajeInput.value.trim();
             if (mensaje === '' || !socket) return;
 
@@ -1080,6 +1313,9 @@
             // Limpiar input
             mensajeInput.value = '';
             mensajeInput.style.height = 'auto';
+            charCounter.textContent = '0 / 1000';
+            charCounter.classList.remove('warning', 'danger');
+            mensajeInput.classList.remove('char-limit-warning', 'char-limit-danger');
             document.getElementById('btnEnviar').disabled = true;
 
             // Dejar de escribir

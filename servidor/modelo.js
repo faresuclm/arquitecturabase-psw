@@ -441,13 +441,24 @@ function Sistema() {
     this.unirseAGrupo = function(grupoId, emailUsuario, callback) {
         let modelo = this;
         this.cad.obtenerGrupo(grupoId, function(grupo) {
-            if (grupo && !grupo.miembros.includes(emailUsuario)) {
+            if (!grupo) {
+                console.error("❌ Grupo no encontrado:", grupoId);
+                if (callback) callback(null);
+                return;
+            }
+
+            if (!grupo.miembros.includes(emailUsuario)) {
                 grupo.miembros.push(emailUsuario);
+                console.log(`✅ Usuario ${emailUsuario} uniéndose al grupo ${grupo.nombre}`);
                 modelo.cad.actualizarGrupo(grupo, function(res) {
+                    if (res && res.id !== -1) {
+                        console.log(`✅ Usuario ${emailUsuario} se unió exitosamente al grupo ${grupo.nombre}`);
+                    }
                     if (callback) callback(res);
                 });
-            } else if (callback) {
-                callback(grupo);
+            } else {
+                console.log(`ℹ️ Usuario ${emailUsuario} ya es miembro del grupo ${grupo.nombre}`);
+                if (callback) callback(grupo);
             }
         });
     }
@@ -455,13 +466,33 @@ function Sistema() {
     this.salirDeGrupo = function(grupoId, emailUsuario, callback) {
         let modelo = this;
         this.cad.obtenerGrupo(grupoId, function(grupo) {
-            if (grupo) {
+            if (!grupo) {
+                console.error("❌ Grupo no encontrado:", grupoId);
+                if (callback) callback(null);
+                return;
+            }
+
+            // Verificar si el usuario es miembro
+            if (grupo.miembros.includes(emailUsuario)) {
+                // No permitir que el creador salga del grupo si no es un grupo predeterminado
+                if (grupo.creador === emailUsuario && grupo.creador !== "sistema") {
+                    console.warn(`⚠️ El creador ${emailUsuario} no puede salir del grupo ${grupo.nombre}`);
+                    if (callback) callback({ id: -1, error: "El creador no puede abandonar el grupo" });
+                    return;
+                }
+
                 grupo.miembros = grupo.miembros.filter(m => m !== emailUsuario);
+                console.log(`✅ Usuario ${emailUsuario} saliendo del grupo ${grupo.nombre}`);
+
                 modelo.cad.actualizarGrupo(grupo, function(res) {
+                    if (res && res.id !== -1) {
+                        console.log(`✅ Usuario ${emailUsuario} salió exitosamente del grupo ${grupo.nombre}`);
+                    }
                     if (callback) callback(res);
                 });
-            } else if (callback) {
-                callback(null);
+            } else {
+                console.log(`ℹ️ Usuario ${emailUsuario} no es miembro del grupo ${grupo.nombre}`);
+                if (callback) callback(grupo);
             }
         });
     }
