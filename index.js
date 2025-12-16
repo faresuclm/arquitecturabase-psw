@@ -29,10 +29,11 @@ app.use(
     cookieSession({
         name: "Sistema",
         keys: ["key1", "key2"],
-        maxAge: 24 * 60 * 60 * 1000, // 24 horas
+        maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax',
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production'
+        secure: process.env.NODE_ENV === 'production',
+        maxLength: 8192  // ← AÑADIR: 8KB en lugar de 4KB por defecto
     })
 );
 app.use(passport.initialize());
@@ -55,7 +56,7 @@ app.get("/fallo", function (request, response) {
 app.get("/api/config", function (request, response) {
     response.json({
         GCLIENT_ID: config.google.clientId,
-        GCALLBACK_URI: config.google.callbackUri
+        GCALLBACK_URI: config.google.callbackUri  // ← Verifica que sea callbackUri
     });
 });
 
