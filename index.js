@@ -294,21 +294,6 @@ app.get("/api/grupos", haIniciado, function(request, response) {
     });
 });
 
-app.post("/api/grupos", haIniciado, function(request, response) {
-    const { nombre, descripcion } = request.body;
-    const creador = request.user.email;
-
-    if (!nombre || nombre.trim() === "") {
-        return response.status(400).json({ error: "El nombre del grupo es obligatorio" });
-    }
-
-    sistema.crearGrupo(nombre, descripcion, creador, function(grupo) {
-        if (grupo.id === -1) {
-            return response.status(500).json({ error: "Error al crear el grupo" });
-        }
-        response.json(grupo);
-    });
-});
 
 app.get("/api/grupos/:grupoId", haIniciado, function(request, response) {
     const grupoId = request.params.grupoId;
@@ -775,6 +760,16 @@ io.on('connection', (socket) => {
         if (!usuariosOnlinePorGrupo[grupoId]) {
             usuariosOnlinePorGrupo[grupoId] = {};
         }
+
+        // Primero, eliminar cualquier socket antiguo del mismo usuario (evitar duplicados)
+        for (const socketId in usuariosOnlinePorGrupo[grupoId]) {
+            if (usuariosOnlinePorGrupo[grupoId][socketId].email === usuarioEmail && socketId !== socket.id) {
+                console.log(`🔄 Removiendo socket antiguo ${socketId} del usuario ${usuarioEmail}`);
+                delete usuariosOnlinePorGrupo[grupoId][socketId];
+            }
+        }
+
+        // Ahora agregar el nuevo socket
         usuariosOnlinePorGrupo[grupoId][socket.id] = {
             email: usuarioEmail,
             nombre: usuarioNombre
@@ -789,15 +784,19 @@ io.on('connection', (socket) => {
             nombre: usuarioNombre
         });
 
-        // Enviar lista actualizada de usuarios online a todos
-        const usuariosOnline = Object.values(usuariosOnlinePorGrupo[grupoId] || {})
-            .map(u => u.email);
+        // Enviar lista actualizada de usuarios online a todos (sin duplicados)
+        const usuariosOnlineSet = new Set();
+        Object.values(usuariosOnlinePorGrupo[grupoId] || {}).forEach(u => {
+            usuariosOnlineSet.add(u.email);
+        });
+        const usuariosOnline = Array.from(usuariosOnlineSet);
+
         io.to(grupoId).emit('usuariosOnlineActualizados', {
             grupoId: grupoId,
             usuarios: usuariosOnline
         });
 
-        console.log(`📊 Usuarios online en grupo ${grupoId}:`, usuariosOnline);
+        console.log(`📊 Usuarios online únicos en grupo ${grupoId}:`, usuariosOnline);
     });
 
     // Salir de un grupo
@@ -818,9 +817,13 @@ io.on('connection', (socket) => {
                 nombre: usuarioInfo.nombre
             });
 
-            // Enviar lista actualizada
-            const usuariosOnline = Object.values(usuariosOnlinePorGrupo[grupoId] || {})
-                .map(u => u.email);
+            // Enviar lista actualizada sin duplicados
+            const usuariosOnlineSet = new Set();
+            Object.values(usuariosOnlinePorGrupo[grupoId] || {}).forEach(u => {
+                usuariosOnlineSet.add(u.email);
+            });
+            const usuariosOnline = Array.from(usuariosOnlineSet);
+
             io.to(grupoId).emit('usuariosOnlineActualizados', {
                 grupoId: grupoId,
                 usuarios: usuariosOnline
@@ -883,9 +886,13 @@ io.on('connection', (socket) => {
                 nombre: usuarioInfo.nombre
             });
 
-            // Enviar lista actualizada
-            const usuariosOnline = Object.values(usuariosOnlinePorGrupo[grupoId] || {})
-                .map(u => u.email);
+            // Enviar lista actualizada sin duplicados
+            const usuariosOnlineSet = new Set();
+            Object.values(usuariosOnlinePorGrupo[grupoId] || {}).forEach(u => {
+                usuariosOnlineSet.add(u.email);
+            });
+            const usuariosOnline = Array.from(usuariosOnlineSet);
+
             io.to(grupoId).emit('usuariosOnlineActualizados', {
                 grupoId: grupoId,
                 usuarios: usuariosOnline

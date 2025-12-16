@@ -300,6 +300,180 @@
             box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
         }
 
+        /* Modales */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .modal-icon.info {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .modal-icon.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .modal-icon.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .modal-icon.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            flex: 1;
+        }
+
+        .modal-body {
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .modal-btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .modal-btn-secondary {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .modal-btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .modal-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .modal-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .grupos-grid {
@@ -328,6 +502,19 @@
             #btnCerrarSesion {
                 width: 100%;
                 justify-content: center;
+            }
+
+            .modal {
+                width: 95%;
+                padding: 24px;
+            }
+
+            .modal-actions {
+                flex-direction: column;
+            }
+
+            .modal-btn {
+                width: 100%;
             }
         }
     </style>
@@ -788,11 +975,18 @@
         }
 
         async function abandonarGrupo(grupoId, nombreGrupo) {
-            try {
-                if (!confirm(`¿Estás seguro de que quieres abandonar el grupo "${nombreGrupo}"?\n\nPodrás volver a unirte cuando quieras.`)) {
-                    return;
+            confirmarAccion(
+                'Abandonar Grupo',
+                `¿Estás seguro de que quieres abandonar el grupo <strong>"${escaparHTML(nombreGrupo)}"</strong>?<br><br>
+                <span style="color: #64748b;">Podrás volver a unirte cuando quieras.</span>`,
+                async () => {
+                    await ejecutarAbandonarGrupo(grupoId, nombreGrupo);
                 }
+            );
+        }
 
+        async function ejecutarAbandonarGrupo(grupoId, nombreGrupo) {
+            try {
                 console.log(`📝 Intentando abandonar el grupo ${nombreGrupo}...`);
 
                 const response = await fetch(`/api/grupos/${grupoId}/salir`, {
@@ -994,7 +1188,178 @@
             div.textContent = texto;
             return div.innerHTML;
         }
+
+        // ============= FUNCIONES DE MODALES =============
+
+        function mostrarModal(tipo, titulo, mensaje, acciones = []) {
+            const overlay = document.getElementById('modalOverlay');
+            const modal = document.getElementById('modal');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            const modalActions = document.getElementById('modalActions');
+
+            // Configurar icono según tipo
+            const iconos = {
+                info: '<i class="fas fa-info-circle"></i>',
+                success: '<i class="fas fa-check-circle"></i>',
+                warning: '<i class="fas fa-exclamation-triangle"></i>',
+                error: '<i class="fas fa-times-circle"></i>'
+            };
+
+            modalIcon.className = `modal-icon ${tipo}`;
+            modalIcon.innerHTML = iconos[tipo] || iconos.info;
+            modalTitle.textContent = titulo;
+            modalBody.innerHTML = mensaje;
+
+            // Limpiar acciones anteriores
+            modalActions.innerHTML = '';
+
+            // Agregar acciones
+            acciones.forEach(accion => {
+                const btn = document.createElement('button');
+                btn.className = `modal-btn ${accion.clase || 'modal-btn-primary'}`;
+                btn.textContent = accion.texto;
+                btn.onclick = () => {
+                    cerrarModal();
+                    if (accion.callback) accion.callback();
+                };
+                modalActions.appendChild(btn);
+            });
+
+            overlay.classList.add('active');
+        }
+
+        function cerrarModal() {
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.remove('active');
+        }
+
+        function mostrarModalCrearGrupo() {
+            const overlay = document.getElementById('modalOverlay');
+            const modal = document.getElementById('modal');
+
+            modal.innerHTML = `
+                <div class="modal-header">
+                    <div class="modal-icon info">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    <div class="modal-title">Crear Nuevo Grupo</div>
+                </div>
+                <div class="modal-body">
+                    <label style="display: block; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
+                        Nombre del grupo <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="text" id="nuevoGrupoNombre" class="modal-input"
+                           placeholder="Ej: Desarrollo Web" maxlength="50" required>
+
+                    <label style="display: block; font-weight: 600; color: #1e293b; margin-bottom: 8px; margin-top: 12px;">
+                        Descripción
+                    </label>
+                    <textarea id="nuevoGrupoDescripcion" class="modal-textarea"
+                              placeholder="Describe el propósito del grupo..." maxlength="200"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn modal-btn-secondary" onclick="cerrarModal()">
+                        Cancelar
+                    </button>
+                    <button class="modal-btn modal-btn-primary" onclick="crearGrupoDesdeModal()">
+                        <i class="fas fa-plus"></i> Crear Grupo
+                    </button>
+                </div>
+            `;
+
+            overlay.classList.add('active');
+        }
+
+        async function crearGrupoDesdeModal() {
+            const nombre = document.getElementById('nuevoGrupoNombre').value.trim();
+            const descripcion = document.getElementById('nuevoGrupoDescripcion').value.trim();
+
+            if (!nombre) {
+                mostrarNotificacion('El nombre del grupo es obligatorio', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/grupos', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ nombre, descripcion })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.id) {
+                    cerrarModal();
+                    mostrarNotificacion(`Grupo "${nombre}" creado exitosamente`, 'success');
+                    await cargarGrupos();
+                } else {
+                    throw new Error(data.error || 'Error al crear el grupo');
+                }
+            } catch (error) {
+                console.error('Error al crear grupo:', error);
+                mostrarNotificacion(error.message || 'Error al crear el grupo', 'error');
+            }
+        }
+
+        function mostrarModalInfoGrupo(grupo) {
+            const esMiembro = grupo.miembros && grupo.miembros.includes(usuarioActual.email);
+            const esCreador = grupo.creador === usuarioActual.email;
+
+            mostrarModal('info', 'Información del Grupo', `
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Nombre:</strong>
+                    <div style="color: #64748b; margin-top: 4px;">${escaparHTML(grupo.nombre)}</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Descripción:</strong>
+                    <div style="color: #64748b; margin-top: 4px;">${escaparHTML(grupo.descripcion || 'Sin descripción')}</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Miembros:</strong>
+                    <div style="color: #64748b; margin-top: 4px;">${grupo.miembros ? grupo.miembros.length : 0} miembro(s)</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Tu estado:</strong>
+                    <div style="margin-top: 8px;">
+                        ${esMiembro ? '<span class="grupo-badge">Miembro</span>' : '<span style="color: #64748b;">No eres miembro</span>'}
+                        ${esCreador ? '<span class="grupo-badge" style="background: #fef3c7; color: #f59e0b; margin-left: 8px;">Creador</span>' : ''}
+                    </div>
+                </div>
+            `, [
+                { texto: 'Cerrar', clase: 'modal-btn-secondary' }
+            ]);
+        }
+
+        function confirmarAccion(titulo, mensaje, callback) {
+            mostrarModal('warning', titulo, mensaje, [
+                { texto: 'Cancelar', clase: 'modal-btn-secondary' },
+                { texto: 'Confirmar', clase: 'modal-btn-danger', callback: callback }
+            ]);
+        }
     </script>
+
+    <!-- Modales -->
+    <div class="modal-overlay" id="modalOverlay" onclick="if(event.target === this) cerrarModal()">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <div class="modal-icon info" id="modalIcon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="modal-title" id="modalTitle">Título del Modal</div>
+            </div>
+            <div class="modal-body" id="modalBody">
+                Contenido del modal
+            </div>
+            <div class="modal-actions" id="modalActions">
+                <button class="modal-btn modal-btn-primary" onclick="cerrarModal()">Aceptar</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

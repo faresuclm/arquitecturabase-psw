@@ -328,15 +328,16 @@
         }
 
         .chat-input-container {
-            padding: 20px 24px;
-            background: white;
+            padding: 24px;
+            background: linear-gradient(to top, #f8fafc 0%, #ffffff 100%);
             border-top: 1px solid #e2e8f0;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.03);
         }
 
         .chat-input-form {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
         }
 
         .chat-input-wrapper {
@@ -349,91 +350,171 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0 4px;
+            padding: 0 8px;
             font-size: 12px;
             color: #94a3b8;
-            min-height: 18px;
+            min-height: 20px;
+            margin-bottom: 8px;
         }
 
         .char-counter {
-            transition: color 0.2s;
+            transition: all 0.2s;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: #f1f5f9;
         }
 
         .char-counter.warning {
             color: #f59e0b;
+            background: #fef3c7;
             font-weight: 600;
         }
 
         .char-counter.danger {
             color: #ef4444;
+            background: #fee2e2;
             font-weight: 700;
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
 
         .input-hint {
             font-size: 11px;
             color: #cbd5e1;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .input-hint i {
+            font-size: 10px;
         }
 
         .chat-input {
             flex: 1;
-            min-height: 44px;
-            max-height: 120px;
-            padding: 12px 16px;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 14px;
+            min-height: 48px;
+            max-height: 150px;
+            padding: 14px 18px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            font-size: 15px;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             resize: none;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: #ffffff;
+            color: #1e293b;
+            line-height: 1.5;
+        }
+
+        .chat-input::placeholder {
+            color: #94a3b8;
+            font-weight: 400;
         }
 
         .chat-input:focus {
             outline: none;
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            border-color: #3b82f6;
+            background: #ffffff;
+            box-shadow:
+                0 0 0 4px rgba(59, 130, 246, 0.1),
+                0 4px 12px rgba(59, 130, 246, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .chat-input:hover:not(:focus) {
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .chat-input.char-limit-warning {
             border-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .chat-input.char-limit-warning:focus {
+            box-shadow:
+                0 0 0 4px rgba(245, 158, 11, 0.1),
+                0 4px 12px rgba(245, 158, 11, 0.15);
         }
 
         .chat-input.char-limit-danger {
             border-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .chat-input.char-limit-danger:focus {
+            box-shadow:
+                0 0 0 4px rgba(239, 68, 68, 0.1),
+                0 4px 12px rgba(239, 68, 68, 0.15);
         }
 
         .chat-input-actions {
             display: flex;
-            gap: 8px;
+            gap: 10px;
         }
 
         .btn-input-action {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            border: none;
-            background: #f1f5f9;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            border: 2px solid #e2e8f0;
+            background: #ffffff;
             color: #64748b;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-input-action::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(59, 130, 246, 0.1);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn-input-action:hover::before {
+            width: 100px;
+            height: 100px;
         }
 
         .btn-input-action:hover {
-            background: #e2e8f0;
-            color: #2563eb;
+            border-color: #3b82f6;
+            color: #3b82f6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-input-action:active {
+            transform: translateY(0);
         }
 
         .btn-input-action i {
-            font-size: 16px;
+            font-size: 18px;
+            position: relative;
+            z-index: 1;
         }
 
         .btn-send {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
             border: none;
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
@@ -441,22 +522,47 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-send::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-send:hover:not(:disabled)::before {
+            left: 100%;
         }
 
         .btn-send:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
         }
 
         .btn-send:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
         }
 
         .btn-send:active:not(:disabled) {
-            transform: translateY(0);
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        .btn-send i {
+            font-size: 18px;
+            position: relative;
+            z-index: 1;
         }
 
         .btn-send i {
@@ -610,6 +716,133 @@
                 gap: 6px;
             }
         }
+
+        /* Modales */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .modal-icon.info {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .modal-icon.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .modal-icon.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            flex: 1;
+        }
+
+        .modal-body {
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .modal-btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .modal-btn-secondary {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .modal-btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -637,8 +870,8 @@
                     <div class="chat-header-subtitle" id="chatSubtitulo">Conectando...</div>
                 </div>
                 <div class="chat-header-actions">
-                    <button class="btn-action" id="btnUsuarios" title="Ver usuarios">
-                        <i class="fas fa-users"></i>
+                    <button class="btn-action" id="btnInfoGrupo" title="Información del grupo" onclick="mostrarInfoGrupo()">
+                        <i class="fas fa-info-circle"></i>
                     </button>
                     <button class="btn-action" id="btnAbandonarGrupo" title="Abandonar grupo" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;">
                         <i class="fas fa-door-open"></i>
@@ -674,7 +907,10 @@
             <div class="chat-input-container">
                 <div class="chat-input-form">
                     <div class="chat-input-meta">
-                        <span class="input-hint">Presiona Enter para enviar, Shift + Enter para nueva línea</span>
+                        <span class="input-hint">
+                            <i class="fas fa-keyboard"></i>
+                            <strong>Enter</strong> enviar • <strong>Shift + Enter</strong> nueva línea
+                        </span>
                         <span class="char-counter" id="charCounter">0 / 1000</span>
                     </div>
                     <div class="chat-input-wrapper">
@@ -682,7 +918,7 @@
                         <textarea
                             class="chat-input"
                             id="mensajeInput"
-                            placeholder="Escribe un mensaje..."
+                            placeholder="💬 Escribe tu mensaje aquí..."
                             rows="1"
                             maxlength="1000"
                             aria-label="Escribe un mensaje"
@@ -1153,49 +1389,49 @@
                 window.location.href = '/cliente/grupos.html';
             });
 
-            // Toggle sidebar en móvil
-            document.getElementById('btnUsuarios').addEventListener('click', function() {
-                const sidebar = document.getElementById('chatSidebar');
-                if (window.innerWidth <= 768) {
-                    sidebar.style.display = sidebar.style.display === 'none' ? 'flex' : 'none';
-                }
-            });
 
             // Botón abandonar grupo
-            document.getElementById('btnAbandonarGrupo').addEventListener('click', async function() {
-                if (confirm(`¿Estás seguro de que quieres abandonar el grupo "${grupoActual.nombre}"?\n\nPodrás volver a unirte cuando quieras.`)) {
-                    try {
-                        console.log(`📝 Abandonando grupo ${grupoActual.nombre}...`);
+            document.getElementById('btnAbandonarGrupo').addEventListener('click', function() {
+                confirmarAccion(
+                    'Abandonar Grupo',
+                    `¿Estás seguro de que quieres abandonar el grupo <strong>"${escaparHTML(grupoActual.nombre)}"</strong>?<br><br>
+                    <span style="color: #64748b;">Podrás volver a unirte cuando quieras.</span>`,
+                    async () => {
+                        try {
+                            console.log(`📝 Abandonando grupo ${grupoActual.nombre}...`);
 
-                        const response = await fetch(`/api/grupos/${grupoActual.id}/salir`, {
-                            method: 'POST',
-                            credentials: 'include',
-                            headers: {
-                                'Content-Type': 'application/json'
+                            const response = await fetch(`/api/grupos/${grupoActual.id}/salir`, {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+
+                            const data = await response.json();
+
+                            if (response.ok && data.success) {
+                                console.log(`✅ Has abandonado el grupo ${grupoActual.nombre}`);
+
+                                // Desconectar socket
+                                if (socket) {
+                                    socket.emit('salirGrupo', grupoActual.id);
+                                    socket.disconnect();
+                                }
+
+                                // Redirigir a lista de grupos
+                                window.location.href = '/cliente/grupos.html';
+                            } else {
+                                throw new Error(data.error || 'Error al abandonar el grupo');
                             }
-                        });
-
-                        const data = await response.json();
-
-                        if (response.ok && data.success) {
-                            console.log(`✅ Has abandonado el grupo ${grupoActual.nombre}`);
-
-                            // Desconectar socket
-                            if (socket) {
-                                socket.emit('salirGrupo', grupoActual.id);
-                                socket.disconnect();
-                            }
-
-                            // Redirigir a lista de grupos
-                            window.location.href = '/cliente/grupos.html';
-                        } else {
-                            throw new Error(data.error || 'Error al abandonar el grupo');
+                        } catch (error) {
+                            console.error('Error al abandonar el grupo:', error);
+                            mostrarModal('error', 'Error', 'No se pudo abandonar el grupo: ' + error.message, [
+                                { texto: 'Cerrar', clase: 'modal-btn-secondary' }
+                            ]);
                         }
-                    } catch (error) {
-                        console.error('Error al abandonar el grupo:', error);
-                        alert('Error al abandonar el grupo: ' + error.message);
                     }
-                }
+                );
             });
 
             // Botón cerrar sesión
@@ -1477,7 +1713,113 @@
             div.textContent = texto;
             return div.innerHTML;
         }
+
+        // ============= FUNCIONES DE MODALES =============
+
+        function mostrarModal(tipo, titulo, mensaje, acciones = []) {
+            const overlay = document.getElementById('modalOverlay');
+            const modal = document.getElementById('modal');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            const modalActions = document.getElementById('modalActions');
+
+            // Configurar icono según tipo
+            const iconos = {
+                info: '<i class="fas fa-info-circle"></i>',
+                warning: '<i class="fas fa-exclamation-triangle"></i>',
+                error: '<i class="fas fa-times-circle"></i>'
+            };
+
+            modalIcon.className = `modal-icon ${tipo}`;
+            modalIcon.innerHTML = iconos[tipo] || iconos.info;
+            modalTitle.textContent = titulo;
+            modalBody.innerHTML = mensaje;
+
+            // Limpiar acciones anteriores
+            modalActions.innerHTML = '';
+
+            // Agregar acciones
+            acciones.forEach(accion => {
+                const btn = document.createElement('button');
+                btn.className = `modal-btn ${accion.clase || 'modal-btn-primary'}`;
+                btn.textContent = accion.texto;
+                btn.onclick = () => {
+                    cerrarModal();
+                    if (accion.callback) accion.callback();
+                };
+                modalActions.appendChild(btn);
+            });
+
+            overlay.classList.add('active');
+        }
+
+        function cerrarModal() {
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.remove('active');
+        }
+
+        function confirmarAccion(titulo, mensaje, callback) {
+            mostrarModal('warning', titulo, mensaje, [
+                { texto: 'Cancelar', clase: 'modal-btn-secondary' },
+                { texto: 'Confirmar', clase: 'modal-btn-danger', callback: callback }
+            ]);
+        }
+
+        function mostrarInfoGrupo() {
+            if (!grupoActual) return;
+
+            const numMiembros = grupoActual.miembros ? grupoActual.miembros.length : 0;
+            const esMiembro = grupoActual.miembros && grupoActual.miembros.includes(usuarioActual.email);
+            const esCreador = grupoActual.creador === usuarioActual.email;
+
+            mostrarModal('info', 'Información del Grupo', `
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Nombre:</strong>
+                    <div style="color: #64748b; margin-top: 4px;">${escaparHTML(grupoActual.nombre)}</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Descripción:</strong>
+                    <div style="color: #64748b; margin-top: 4px;">${escaparHTML(grupoActual.descripcion || 'Sin descripción')}</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Miembros:</strong>
+                    <div style="color: #64748b; margin-top: 4px;">${numMiembros} miembro(s)</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Usuarios conectados:</strong>
+                    <div style="color: #64748b; margin-top: 4px;">${usuariosOnline.size + 1} en línea</div>
+                </div>
+                <div>
+                    <strong style="color: #1e293b;">Tu estado:</strong>
+                    <div style="margin-top: 8px;">
+                        ${esMiembro ? '<span style="background: #eff6ff; color: #2563eb; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;">Miembro</span>' : ''}
+                        ${esCreador ? '<span style="background: #fef3c7; color: #f59e0b; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; margin-left: 8px;">Creador</span>' : ''}
+                    </div>
+                </div>
+            `, [
+                { texto: 'Cerrar', clase: 'modal-btn-secondary' }
+            ]);
+        }
     </script>
+
+    <!-- Modales -->
+    <div class="modal-overlay" id="modalOverlay" onclick="if(event.target === this) cerrarModal()">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <div class="modal-icon info" id="modalIcon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="modal-title" id="modalTitle">Título del Modal</div>
+            </div>
+            <div class="modal-body" id="modalBody">
+                Contenido del modal
+            </div>
+            <div class="modal-actions" id="modalActions">
+                <button class="modal-btn modal-btn-primary" onclick="cerrarModal()">Aceptar</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 
