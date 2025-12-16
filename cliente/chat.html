@@ -117,6 +117,36 @@
             color: #2563eb;
         }
 
+        .btn-logout {
+            height: 36px;
+            padding: 0 16px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+        }
+
+        .btn-logout:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-logout:active {
+            transform: translateY(0);
+        }
+
+        .btn-logout i {
+            font-size: 14px;
+        }
+
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -406,6 +436,24 @@
             .message-content {
                 max-width: 85%;
             }
+
+            .btn-logout-text {
+                display: none;
+            }
+
+            .btn-logout {
+                padding: 0 12px;
+                min-width: 36px;
+            }
+
+            .chat-header {
+                padding: 16px 12px;
+                gap: 8px;
+            }
+
+            .chat-header-actions {
+                gap: 6px;
+            }
         }
     </style>
 </head>
@@ -428,6 +476,10 @@
                 <div class="chat-header-actions">
                     <button class="btn-action" id="btnUsuarios" title="Ver usuarios">
                         <i class="fas fa-users"></i>
+                    </button>
+                    <button class="btn-logout" id="btnCerrarSesionChat" title="Cerrar sesión">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span class="btn-logout-text">Cerrar Sesión</span>
                     </button>
                 </div>
             </div>
@@ -685,6 +737,53 @@
                     sidebar.style.display = sidebar.style.display === 'none' ? 'flex' : 'none';
                 }
             });
+
+            // Botón cerrar sesión
+            const btnCerrarSesionChat = document.getElementById('btnCerrarSesionChat');
+            if (btnCerrarSesionChat) {
+                btnCerrarSesionChat.addEventListener('click', async function() {
+                    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+                        try {
+                            // Mostrar indicador de carga en el botón
+                            btnCerrarSesionChat.disabled = true;
+                            btnCerrarSesionChat.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="btn-logout-text">Cerrando...</span>';
+
+                            // Desconectar socket si existe
+                            if (socket) {
+                                socket.emit('salirGrupo', grupoActual.id);
+                                socket.disconnect();
+                            }
+
+                            // Hacer petición al servidor para cerrar sesión
+                            const response = await fetch('/cerrarSesion', {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+
+                            if (response.ok) {
+                                // Eliminar cookies del cliente
+                                document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                                document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+                                // Redirigir a la página de inicio
+                                window.location.href = '/';
+                            } else {
+                                throw new Error('Error al cerrar sesión');
+                            }
+                        } catch (error) {
+                            console.error('Error al cerrar sesión:', error);
+                            alert('Hubo un error al cerrar sesión. Por favor, intenta de nuevo.');
+
+                            // Restaurar botón
+                            btnCerrarSesionChat.disabled = false;
+                            btnCerrarSesionChat.innerHTML = '<i class="fas fa-sign-out-alt"></i> <span class="btn-logout-text">Cerrar Sesión</span>';
+                        }
+                    }
+                });
+            }
 
             // Auto-resize del textarea
             const mensajeInput = document.getElementById('mensajeInput');

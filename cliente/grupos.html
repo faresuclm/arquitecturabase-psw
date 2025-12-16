@@ -200,6 +200,14 @@
             margin-bottom: 16px;
         }
 
+        #btnCerrarSesion:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        #btnCerrarSesion:active {
+            transform: translateY(0);
+        }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -214,15 +222,51 @@
             .chat-title {
                 font-size: 24px;
             }
+
+            #btnCerrarSesion {
+                padding: 10px 16px !important;
+                font-size: 14px !important;
+            }
+
+            .header-section > div:first-child {
+                flex-direction: column;
+                gap: 16px;
+                align-items: stretch !important;
+            }
+
+            #btnCerrarSesion {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
     <div class="grupos-container">
         <div class="header-section">
-            <div class="chat-title">
-                <i class="fas fa-users"></i>
-                EsiiChat - Grupos de Chat
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                <div class="chat-title">
+                    <i class="fas fa-users"></i>
+                    EsiiChat - Grupos de Chat
+                </div>
+                <button id="btnCerrarSesion" style="
+                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 10px;
+                    font-weight: 600;
+                    font-size: 15px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+                ">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Cerrar Sesión
+                </button>
             </div>
             <div class="user-info" id="userInfo">Cargando...</div>
             <div class="chat-subtitle">Selecciona un grupo para unirte a la conversación</div>
@@ -464,13 +508,46 @@
         }
 
         function configurarEventos() {
-
             // Botón cerrar sesión
-            document.getElementById('btnCerrarSesion').addEventListener('click', async function() {
-                if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-                    window.location.href = '/cerrarSesion';
-                }
-            });
+            const btnCerrarSesion = document.getElementById('btnCerrarSesion');
+            if (btnCerrarSesion) {
+                btnCerrarSesion.addEventListener('click', async function() {
+                    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+                        try {
+                            // Mostrar indicador de carga en el botón
+                            btnCerrarSesion.disabled = true;
+                            btnCerrarSesion.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cerrando sesión...';
+
+                            // Hacer petición al servidor para cerrar sesión
+                            const response = await fetch('/cerrarSesion', {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+
+                            if (response.ok) {
+                                // Eliminar cookies del cliente
+                                document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                                document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+                                // Redirigir a la página de inicio
+                                window.location.href = '/';
+                            } else {
+                                throw new Error('Error al cerrar sesión');
+                            }
+                        } catch (error) {
+                            console.error('Error al cerrar sesión:', error);
+                            alert('Hubo un error al cerrar sesión. Por favor, intenta de nuevo.');
+
+                            // Restaurar botón
+                            btnCerrarSesion.disabled = false;
+                            btnCerrarSesion.innerHTML = '<i class="fas fa-sign-out-alt"></i> Cerrar Sesión';
+                        }
+                    }
+                });
+            }
         }
 
 

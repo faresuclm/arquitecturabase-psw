@@ -601,19 +601,15 @@ function ControlWeb() {
             cw.mostrarGrupos();
         } else if (view === 'registro') {
             // Mostrar página de REGISTRO
-            $("#mainNav").hide();
             $("#mainContainer").show();
             cw.mostrarRegistro();
         } else if (resetPassword === 'true' && email && token) {
             // Mostrar página de RESTABLECER contraseña
-            $("#mainNav").hide();
             $("#mainContainer").show();
             cw.mostrarRestablecerPassword(email, token);
             // Limpiar la URL después de cargar el formulario
             window.history.replaceState({}, document.title, window.location.pathname);
         } else {
-            // Ocultar el navegador cuando no hay sesión
-            $("#mainNav").hide();
             // Mostrar el contenedor principal para login/registro
             $("#mainContainer").show();
 
