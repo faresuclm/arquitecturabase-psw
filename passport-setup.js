@@ -1,4 +1,4 @@
-const config = require("../config/config");
+const config = require("./config/config");
 const GoogleOneTapStrategy = require("passport-google-one-tap").GoogleOneTapStrategy;
 const passport = require("passport");
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
