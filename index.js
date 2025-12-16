@@ -591,13 +591,63 @@ app.post('/loginUsuario', function(request, response, next) {
 });
 
 app.post("/cerrarSesion", function (request, response) {
-    let nick = request.body.nick;
-    console.log("Usuario " + nick + " ha cerrado sesión");
-    // Aquí podrías agregar lógica adicional como:
-    // - Registrar el logout en la base de datos
-    // - Actualizar el estado del usuario
-    // - Limpiar recursos asociados
-    response.send({"resultado": "sesion_cerrada", "nick": nick});
+    // Guardar email antes de destruir la sesión
+    let email = null;
+    if (request.user && request.user.email) {
+        email = request.user.email;
+    }
+
+    console.log("🔐 Usuario cerrando sesión:", email || "desconocido");
+
+    // Si no hay usuario en la sesión, devolver éxito de todas formas
+    if (!request.user) {
+        console.log("⚠️ No hay sesión activa para cerrar");
+        return response.json({
+            success: true,
+            mensaje: "No había sesión activa"
+        });
+    }
+
+    // Limpiar sesión de Passport
+    request.logout(function(err) {
+        if (err) {
+            console.error("❌ Error al cerrar sesión:", err);
+            return response.status(500).json({
+                success: false,
+                error: "Error al cerrar sesión"
+            });
+        }
+
+        // Limpiar cookie de sesión ANTES de destruir la sesión
+        response.clearCookie('connect.sid');
+        response.clearCookie('Sistema');
+
+        // Eliminar usuario del sistema si existe
+        if (email) {
+            try {
+                sistema.eliminarUsuario(email);
+                console.log("✅ Usuario eliminado del sistema:", email);
+            } catch (error) {
+                console.error("⚠️ Error al eliminar usuario:", error);
+            }
+        }
+
+        // Destruir la sesión completamente
+        request.session.destroy(function(err) {
+            if (err) {
+                console.error("⚠️ Error al destruir sesión:", err);
+                // Aún así enviamos respuesta exitosa
+            }
+
+            console.log("✅ Sesión cerrada correctamente para:", email);
+
+            // Enviar respuesta JSON
+            response.json({
+                success: true,
+                mensaje: "Sesión cerrada correctamente"
+            });
+        });
+    });
 });
 
 app.post("/solicitarRecuperacionPassword", function (request, response) {

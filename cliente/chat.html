@@ -16,6 +16,44 @@
             padding: 0;
         }
 
+        /* Loader principal del chat */
+        .main-loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: #f8fafc;
+            transition: opacity 0.3s ease;
+        }
+
+        .main-loader-spinner {
+            width: 64px;
+            height: 64px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .main-loader-text {
+            margin-top: 24px;
+            color: #64748b;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .main-loader-subtext {
+            margin-top: 8px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
         .chat-container {
             display: flex;
             height: calc(100vh - 70px);
@@ -23,6 +61,14 @@
             margin: 0 auto;
             background: white;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .chat-container.visible {
+            opacity: 1;
+            visibility: visible;
         }
 
         /* Panel Izquierdo - Conversación */
@@ -458,7 +504,15 @@
     </style>
 </head>
 <body>
-    <div class="chat-container">
+    <!-- Loader principal mientras carga -->
+    <div class="main-loader" id="mainLoader">
+        <div class="main-loader-spinner"></div>
+        <div class="main-loader-text">Cargando Chat</div>
+        <div class="main-loader-subtext">Conectando al grupo...</div>
+    </div>
+
+    <!-- Container del chat (oculto hasta que cargue) -->
+    <div class="chat-container" id="chatContainer">
         <!-- Panel Principal del Chat -->
         <div class="chat-main">
             <!-- Header del Chat -->
@@ -547,46 +601,98 @@
 
         // Inicializar al cargar la página
         window.addEventListener('load', function() {
+            // Evitar caché agresivo del navegador
+            if (performance.navigation.type === 2) {
+                // Usuario llegó por botón "atrás" del navegador, forzar recarga
+                window.location.reload(true);
+                return;
+            }
+
             inicializarChat();
         });
 
         async function inicializarChat() {
-            // Obtener información del usuario actual
-            usuarioActual = await obtenerUsuarioActual();
-            if (!usuarioActual) {
-                alert('No has iniciado sesión');
-                window.location.href = '/';
-                return;
+            try {
+                // Actualizar loader
+                actualizarLoader('Verificando sesión...');
+
+                // Verificar sesión primero
+                const sessionValid = await verificarSesionActiva();
+                if (!sessionValid) {
+                    console.error('❌ No hay sesión activa');
+                    // Limpiar todo antes de redirigir
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    window.location.replace('/');
+                    return;
+                }
+
+                // Actualizar loader
+                actualizarLoader('Obteniendo información del usuario...');
+
+                // Obtener información del usuario actual
+                usuarioActual = await obtenerUsuarioActual();
+                if (!usuarioActual) {
+                    console.error('❌ Error al obtener datos del usuario');
+                    window.location.replace('/');
+                    return;
+                }
+
+                // Actualizar loader
+                actualizarLoader('Cargando información del grupo...');
+
+                // Obtener información del grupo
+                const grupoId = obtenerGrupoIdDeURL();
+                if (!grupoId) {
+                    mostrarErrorLoader('No se ha especificado un grupo');
+                    setTimeout(() => {
+                        window.location.href = '/cliente/grupos.html';
+                    }, 2000);
+                    return;
+                }
+
+                // Cargar información del grupo
+                grupoActual = await cargarGrupo(grupoId);
+                if (!grupoActual) {
+                    mostrarErrorLoader('No se pudo cargar el grupo');
+                    setTimeout(() => {
+                        window.location.href = '/cliente/grupos.html';
+                    }, 2000);
+                    return;
+                }
+
+                // Actualizar loader
+                actualizarLoader('Preparando interfaz del chat...');
+
+                // Actualizar UI
+                actualizarHeaderGrupo();
+                cargarMiembrosGrupo();
+
+                // Actualizar loader
+                actualizarLoader('Conectando al servidor...');
+
+                // Inicializar Socket.IO
+                inicializarWebSocket();
+
+                // Actualizar loader
+                actualizarLoader('Cargando mensajes previos...');
+
+                // Cargar mensajes previos
+                await cargarMensajes();
+
+                // Configurar eventos
+                configurarEventos();
+
+                // TODO LISTO: Mostrar UI
+                mostrarUI();
+
+                console.log('✅ Chat inicializado correctamente');
+            } catch (error) {
+                console.error('❌ Error durante la inicialización del chat:', error);
+                mostrarErrorLoader('Error al cargar el chat. Por favor, intenta de nuevo.');
             }
-
-            // Obtener información del grupo
-            const grupoId = obtenerGrupoIdDeURL();
-            if (!grupoId) {
-                alert('No se ha especificado un grupo');
-                window.location.href = '/cliente/grupos.html';
-                return;
-            }
-
-            // Cargar información del grupo
-            grupoActual = await cargarGrupo(grupoId);
-            if (!grupoActual) {
-                alert('No se pudo cargar el grupo');
-                window.location.href = '/cliente/grupos.html';
-                return;
-            }
-
-            // Actualizar UI
-            actualizarHeaderGrupo();
-            cargarMiembrosGrupo();
-
-            // Inicializar Socket.IO
-            inicializarWebSocket();
-
-            // Cargar mensajes previos
-            await cargarMensajes();
-
-            // Configurar eventos
-            configurarEventos();
         }
 
         function obtenerGrupoIdDeURL() {
@@ -594,10 +700,84 @@
             return params.get('id');
         }
 
+        function actualizarLoader(mensaje, submensaje = '') {
+            const loaderText = document.querySelector('.main-loader-text');
+            const loaderSubtext = document.querySelector('.main-loader-subtext');
+
+            if (loaderText) {
+                loaderText.textContent = mensaje;
+            }
+
+            if (loaderSubtext) {
+                loaderSubtext.textContent = submensaje || 'Por favor, espera...';
+            }
+        }
+
+        function mostrarErrorLoader(mensaje) {
+            const loader = document.getElementById('mainLoader');
+            if (loader) {
+                loader.innerHTML = `
+                    <div style="text-align: center;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 64px; color: #ef4444; margin-bottom: 24px;"></i>
+                        <div style="font-size: 18px; font-weight: 600; color: #1e293b; margin-bottom: 12px;">
+                            Error al cargar el chat
+                        </div>
+                        <div style="font-size: 14px; color: #64748b; margin-bottom: 24px;">
+                            ${mensaje}
+                        </div>
+                        <button onclick="window.location.href='/cliente/grupos.html'" style="
+                            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                            color: white;
+                            border: none;
+                            padding: 12px 24px;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            font-size: 14px;
+                        ">
+                            <i class="fas fa-arrow-left"></i> Volver a Grupos
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function mostrarUI() {
+            const loader = document.getElementById('mainLoader');
+            const container = document.getElementById('chatContainer');
+
+            // Ocultar loader con transición suave
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                }, 300);
+            }
+
+            // Mostrar container con transición suave
+            if (container) {
+                container.classList.add('visible');
+            }
+        }
+
+        async function verificarSesionActiva() {
+            try {
+                const response = await fetch('/ok', {
+                    credentials: 'include',
+                    cache: 'no-store' // Forzar que no use caché
+                });
+                return response.ok;
+            } catch (error) {
+                console.error('Error al verificar sesión:', error);
+                return false;
+            }
+        }
+
         async function obtenerUsuarioActual() {
             try {
                 const response = await fetch('/ok', {
-                    credentials: 'include'
+                    credentials: 'include',
+                    cache: 'no-store' // Forzar que no use caché
                 });
                 if (response.ok) {
                     const data = await response.json();
@@ -618,8 +798,15 @@
 
         async function cargarGrupo(grupoId) {
             try {
-                const response = await fetch(`/api/grupos/${grupoId}`, {
-                    credentials: 'include'
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/api/grupos/${grupoId}?_t=${timestamp}`, {
+                    credentials: 'include',
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
                 });
                 if (response.ok) {
                     return await response.json();
@@ -632,8 +819,15 @@
 
         async function cargarMensajes() {
             try {
-                const response = await fetch(`/api/grupos/${grupoActual.id}/mensajes`, {
-                    credentials: 'include'
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/api/grupos/${grupoActual.id}/mensajes?_t=${timestamp}`, {
+                    credentials: 'include',
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
                 });
                 if (response.ok) {
                     const mensajes = await response.json();
@@ -743,16 +937,25 @@
             if (btnCerrarSesionChat) {
                 btnCerrarSesionChat.addEventListener('click', async function() {
                     if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-                        try {
-                            // Mostrar indicador de carga en el botón
-                            btnCerrarSesionChat.disabled = true;
-                            btnCerrarSesionChat.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="btn-logout-text">Cerrando...</span>';
+                        // Mostrar indicador de carga en el botón
+                        btnCerrarSesionChat.disabled = true;
+                        btnCerrarSesionChat.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="btn-logout-text">Cerrando...</span>';
 
-                            // Desconectar socket si existe
-                            if (socket) {
+                        // Desconectar socket PRIMERO
+                        if (socket) {
+                            try {
                                 socket.emit('salirGrupo', grupoActual.id);
                                 socket.disconnect();
+                                console.log('🔌 Socket desconectado');
+                            } catch (socketError) {
+                                console.warn('⚠️ Error al desconectar socket:', socketError);
                             }
+                        }
+
+                        try {
+                            // Timeout de seguridad de 5 segundos
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 5000);
 
                             // Hacer petición al servidor para cerrar sesión
                             const response = await fetch('/cerrarSesion', {
@@ -760,26 +963,38 @@
                                 credentials: 'include',
                                 headers: {
                                     'Content-Type': 'application/json'
-                                }
+                                },
+                                signal: controller.signal
                             });
 
-                            if (response.ok) {
-                                // Eliminar cookies del cliente
-                                document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                                document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                            clearTimeout(timeoutId);
 
-                                // Redirigir a la página de inicio
-                                window.location.href = '/';
-                            } else {
-                                throw new Error('Error al cerrar sesión');
+                            // Intentar leer respuesta pero no bloquear si falla
+                            try {
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    console.log('✅ Sesión cerrada en servidor:', data);
+                                }
+                            } catch (jsonError) {
+                                console.log('⚠️ No se pudo parsear JSON, continuando...');
                             }
-                        } catch (error) {
-                            console.error('Error al cerrar sesión:', error);
-                            alert('Hubo un error al cerrar sesión. Por favor, intenta de nuevo.');
 
-                            // Restaurar botón
-                            btnCerrarSesionChat.disabled = false;
-                            btnCerrarSesionChat.innerHTML = '<i class="fas fa-sign-out-alt"></i> <span class="btn-logout-text">Cerrar Sesión</span>';
+                        } catch (error) {
+                            if (error.name === 'AbortError') {
+                                console.warn('⚠️ Timeout al cerrar sesión, continuando de todas formas...');
+                            } else {
+                                console.error('❌ Error al cerrar sesión:', error);
+                            }
+                        } finally {
+                            // SIEMPRE limpiar y redirigir, incluso si hay errores
+                            console.log('🧹 Limpiando datos del cliente...');
+                            document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                            document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                            localStorage.clear();
+                            sessionStorage.clear();
+
+                            console.log('🔄 Redirigiendo a página de inicio...');
+                            window.location.replace('/');
                         }
                     }
                 });

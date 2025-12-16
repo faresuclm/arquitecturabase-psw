@@ -575,10 +575,36 @@ function ControlWeb() {
         let token = urlParams.get('token');
 
         if (nick) {
+            // Verificar sesión activa en el servidor antes de proceder
+            fetch('/ok', {
+                credentials: 'include',
+                cache: 'no-store'
+            }).then(response => {
+                if (!response.ok) {
+                    // Sesión expirada, limpiar y redirigir
+                    $.removeCookie("nick", { path: '/' });
+                    $.removeCookie("userName", { path: '/' });
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.replace('/');
+                    return;
+                }
+                return response.json();
+            }).then(userData => {
+                if (userData) {
+                    // Actualizar cookies con datos frescos del servidor
+                    let displayName = (userData.nombre && userData.apellidos)
+                        ? `${userData.nombre} ${userData.apellidos}`
+                        : userData.nombre || userData.nick;
+                    $.cookie("nick", userData.nick, { path: '/' });
+                    $.cookie("userName", displayName, { path: '/' });
+                }
+            }).catch(error => {
+                console.error('Error al verificar sesión:', error);
+            });
+
             // Obtener el nombre del usuario guardado en la cookie
             let displayName = $.cookie("userName") || nick;
-            // Mostrar el navegador cuando hay sesión
-            $("#mainNav").show();
             // Mostrar el contenedor principal para la vista de grupos
             $("#mainContainer").show();
             // Remover la clase auth-container-wrapper si existe
