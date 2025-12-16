@@ -35,6 +35,10 @@ function Sistema() {
         });
     }
 
+    this.verificarUsernameDisponible = function (username, callback) {
+        this.cad.verificarUsernameDisponible(username, callback);
+    }
+
     this.usuarioGoogle = function (usr, callback) {
         // Asegurarse de que los usuarios de Google están confirmados por defecto
         if (!usr.confirmada) {
@@ -115,6 +119,17 @@ function Sistema() {
             return callback({"email": -1, "error": "Email y contraseña son obligatorios"});
         }
 
+        if (!obj.username) {
+            console.error("Error: nombre de usuario es obligatorio");
+            return callback({"email": -1, "error": "El nombre de usuario es obligatorio"});
+        }
+
+        // Validar formato de username
+        if (!/^[a-zA-Z0-9_]{3,20}$/.test(obj.username)) {
+            console.error("Error: formato de username inválido");
+            return callback({"email": -1, "error": "El nombre de usuario debe tener entre 3 y 20 caracteres y solo puede contener letras, números y guiones bajos"});
+        }
+
         if (obj.password.length < 8) {
             console.error("Error: contraseña muy corta");
             return callback({"email": -1, "error": "La contraseña debe tener al menos 8 caracteres"});
@@ -124,10 +139,21 @@ function Sistema() {
             obj.nick = obj.email;
         }
 
-        // Buscar si el usuario ya existe
+        // Primero verificar si el email ya existe
         this.cad.buscarUsuario({"email": obj.email}, function (usr) {
-            if (!usr) {
-                // El usuario no existe, luego lo puedo registrar
+            if (usr) {
+                console.log("El email ya existe:", obj.email);
+                return callback({"email": -1, "error": "El email ya está registrado"});
+            }
+
+            // Luego verificar si el username ya existe
+            modelo.cad.buscarUsuarioPorUsername(obj.username, function (usrByUsername) {
+                if (usrByUsername) {
+                    console.log("El username ya existe:", obj.username);
+                    return callback({"email": -1, "error": "El nombre de usuario ya está en uso"});
+                }
+
+                // Si no existe ni el email ni el username, proceder con el registro
                 // Cifrar la contraseña con bcrypt antes de guardarla
                 bcrypt.hash(obj.password, SALT_ROUNDS, function(err, hash) {
                     if (err) {
@@ -150,11 +176,11 @@ function Sistema() {
                         obj.fechaRegistro = new Date();
                     }
 
-                    console.log("📝 Registrando usuario:", obj.email, "| Provider:", obj.provider || 'local', "| Confirmada:", obj.confirmada);
+                    console.log("📝 Registrando usuario:", obj.email, "| Username:", obj.username, "| Provider:", obj.provider || 'local', "| Confirmada:", obj.confirmada);
 
                     modelo.cad.insertarUsuario(obj, function (res) {
                         if (res && res.email) {
-                            console.log("✅ Usuario registrado exitosamente:", res.email);
+                            console.log("✅ Usuario registrado exitosamente:", res.email, "| Username:", res.username);
 
                             // Solo enviar email de verificación si NO está confirmado (registro normal, no Google)
                             if (obj.confirmada === false) {
@@ -169,10 +195,7 @@ function Sistema() {
                         callback(res);
                     });
                 });
-            } else {
-                console.log("El usuario ya existe:", obj.email);
-                callback({"email": -1, "error": "El email ya está registrado"});
-            }
+            });
         });
     }
 
@@ -544,17 +567,11 @@ function Sistema() {
             modelo.cad.buscarUsuario({ email: email }, function(usuario) {
                 if (usuario) {
                     resultado[email] = {
-                        nombre: usuario.nombre || email.split('@')[0],
-                        apellidos: usuario.apellidos || '',
-                        nombreCompleto: (usuario.nombre && usuario.apellidos)
-                            ? `${usuario.nombre} ${usuario.apellidos}`
-                            : (usuario.nombre || email.split('@')[0])
+                        username: usuario.username || email.split('@')[0]
                     };
                 } else {
                     resultado[email] = {
-                        nombre: email.split('@')[0],
-                        apellidos: '',
-                        nombreCompleto: email.split('@')[0]
+                        username: email.split('@')[0]
                     };
                 }
 

@@ -419,22 +419,6 @@
             </div>
 
             <form id="registroForm" novalidate>
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label for="nombre">Nombre</label>
-                        <input type="text" class="form-control" id="nombre" placeholder="Ada" maxlength="50">
-                        <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
-                            El nombre no puede contener números
-                        </div>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="apellidos">Apellidos</label>
-                        <input type="text" class="form-control" id="apellidos" placeholder="Lovelace" maxlength="100">
-                        <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
-                            Los apellidos no pueden contener números
-                        </div>
-                    </div>
-                </div>
 
                 <div class="form-group">
                     <label for="email">Correo Electrónico <span class="text-danger">*</span></label>
@@ -442,6 +426,18 @@
                     <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
                         Por favor, introduce un correo válido
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="username">Nombre de Usuario <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="username" placeholder="ada_lovelace" required autocomplete="username" maxlength="20" pattern="[a-zA-Z0-9_]{3,20}">
+                    <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                        El nombre de usuario debe tener entre 3 y 20 caracteres y solo puede contener letras, números y guiones bajos
+                    </div>
+                    <div class="username-availability" style="display: none; font-size: 13px; margin-top: 5px;">
+                        <i class="fas fa-spinner fa-spin"></i> Verificando disponibilidad...
+                    </div>
+                    <small class="text-muted mt-1" style="font-size: 12px;">Entre 3 y 20 caracteres. Solo letras, números y guiones bajos (_)</small>
                 </div>
 
                 <div class="form-group">
@@ -512,13 +508,24 @@
                         <strong style="color: var(--text-primary);">Email:</strong>
                         <span id="googleEmailReg"></span>
                     </div>
-                    <div style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;">
-                        <strong style="color: var(--text-primary);">Nombre:</strong>
-                        <span id="googleNameReg"></span>
-                    </div>
                 </div>
 
                 <form id="formPasswordGoogleReg">
+                    <div class="form-group">
+                        <label for="googleUsernameReg" style="font-weight: 600; color: var(--text-primary);">
+                            Nombre de Usuario <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="googleUsernameReg"
+                               placeholder="tu_usuario" required autocomplete="username" maxlength="20" pattern="[a-zA-Z0-9_]{3,20}">
+                        <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                            El nombre de usuario debe tener entre 3 y 20 caracteres
+                        </div>
+                        <div class="username-availability-google" style="display: none; font-size: 13px; margin-top: 5px;">
+                            <i class="fas fa-spinner fa-spin"></i> Verificando disponibilidad...
+                        </div>
+                        <small class="text-muted" style="font-size: 12px;">Solo letras, números y guiones bajos (_)</small>
+                    </div>
+
                     <div class="form-group">
                         <label for="googlePasswordReg" style="font-weight: 600; color: var(--text-primary);">
                             Contraseña <span class="text-danger">*</span>

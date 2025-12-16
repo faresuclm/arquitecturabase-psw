@@ -455,13 +455,24 @@
                         <strong style="color: var(--text-primary);">Email:</strong>
                         <span id="googleEmail"></span>
                     </div>
-                    <div style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;">
-                        <strong style="color: var(--text-primary);">Nombre:</strong>
-                        <span id="googleName"></span>
-                    </div>
                 </div>
 
                 <form id="formPasswordGoogle">
+                    <div class="form-group">
+                        <label for="googleUsername" style="font-weight: 600; color: var(--text-primary);">
+                            Nombre de Usuario <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="googleUsername"
+                               placeholder="tu_usuario" required autocomplete="username" maxlength="20" pattern="[a-zA-Z0-9_]{3,20}">
+                        <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 13px; margin-top: 5px;">
+                            El nombre de usuario debe tener entre 3 y 20 caracteres
+                        </div>
+                        <div class="username-availability-google-login" style="display: none; font-size: 13px; margin-top: 5px;">
+                            <i class="fas fa-spinner fa-spin"></i> Verificando disponibilidad...
+                        </div>
+                        <small class="text-muted" style="font-size: 12px;">Solo letras, números y guiones bajos (_)</small>
+                    </div>
+
                     <div class="form-group">
                         <label for="googlePassword" style="font-weight: 600; color: var(--text-primary);">
                             Contraseña <span class="text-danger">*</span>

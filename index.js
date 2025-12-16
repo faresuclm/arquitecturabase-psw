@@ -29,6 +29,10 @@ app.use(
     cookieSession({
         name: "Sistema",
         keys: ["key1", "key2"],
+        maxAge: 24 * 60 * 60 * 1000, // 24 horas
+        sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production'
     })
 );
 app.use(passport.initialize());
@@ -91,6 +95,22 @@ app.get("/numeroUsuarios", function (request, response) {
     response.send(res);
 });
 
+app.get("/verificarUsername/:username", function (request, response) {
+    const username = request.params.username;
+
+    // Validar formato
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        return response.send({
+            disponible: false,
+            error: "Formato inválido"
+        });
+    }
+
+    sistema.verificarUsernameDisponible(username, function (disponible) {
+        response.send({ disponible: disponible });
+    });
+});
+
 app.get("/eliminarUsuario/:nick", function (request, response) {
     let nick = request.params.nick;
     let res = sistema.eliminarUsuario(nick);
@@ -125,12 +145,15 @@ app.get(
     function (req, res) {
         console.log("🔐 Google callback exitoso");
         console.log("Usuario autenticado:", req.user ? "Sí" : "No");
+        console.log("Tamaño de sesión (aprox):", JSON.stringify(req.session).length, "bytes");
         console.log("Estructura completa de req.user:", JSON.stringify(req.user, null, 2));
 
         if (req.user) {
             console.log("Email del usuario:", req.user.emails ? req.user.emails[0].value : "No disponible");
             console.log("Display Name:", req.user.displayName);
-            console.log("Name:", JSON.stringify(req.user.name));
+            if (req.user.name) {
+                console.log("Name:", JSON.stringify(req.user.name));
+            }
         }
 
         // El origen ya fue guardado en la sesión antes de la autenticación
@@ -154,33 +177,29 @@ app.get("/good", function (request, response) {
 */
 
 app.get("/good", function (request, response) {
+    console.log("📍 Entrando a /good");
+    console.log("request.user existe:", !!request.user);
+    console.log("request.session existe:", !!request.session);
+
+    if (request.user) {
+        console.log("Tipo de request.user:", typeof request.user);
+        console.log("request.user.emails existe:", !!request.user.emails);
+        if (request.user.emails) {
+            console.log("Cantidad de emails:", request.user.emails.length);
+        }
+    }
+
     // Verificar que el usuario existe y tiene emails
     if (!request.user || !request.user.emails || request.user.emails.length === 0) {
         console.error("❌ Error: Usuario no autenticado o sin email en callback de Google");
+        console.error("request.user:", request.user);
+        console.error("Tamaño de sesión:", JSON.stringify(request.session).length, "bytes");
         return response.redirect("/?error=auth_failed&message=" + encodeURIComponent("Error de autenticación con Google"));
     }
 
     let email = request.user.emails[0].value;
     let origin = request.session.googleOrigin || 'login';
     console.log("🔐 Google OAuth: Verificando usuario:", email, "| Origen:", origin);
-
-    // Intentar obtener el nombre del perfil de Google
-    let displayName = email;
-    let nombre = '';
-    let apellidos = '';
-
-    if (request.user.displayName) {
-        displayName = request.user.displayName;
-    }
-
-    if (request.user.name && request.user.name.givenName) {
-        nombre = request.user.name.givenName;
-        displayName = nombre;
-        if (request.user.name.familyName) {
-            apellidos = request.user.name.familyName;
-            displayName += ' ' + apellidos;
-        }
-    }
 
     // Verificar si el usuario ya existe
     sistema.verificarUsuarioGoogle(email, function (existeUsuario) {
@@ -196,24 +215,13 @@ app.get("/good", function (request, response) {
                     }
 
                     response.cookie("nick", existeUsuario.email);
-
-                    let fullName = '';
-                    if (existeUsuario.nombre && existeUsuario.apellidos) {
-                        fullName = existeUsuario.nombre + ' ' + existeUsuario.apellidos;
-                    } else if (existeUsuario.nombre) {
-                        fullName = existeUsuario.nombre;
-                    } else {
-                        fullName = displayName;
-                    }
-
-                    response.cookie("userName", fullName);
+                    response.cookie("userName", existeUsuario.username || email.split('@')[0]);
                     response.redirect("/?google=login_success");
                 });
             } else {
-                // REGISTRO: Mostrar mensaje de error
+                // REGISTRO: Mostrar mensaje de error y redirigir al login
                 console.log("⚠️ Usuario Google ya registrado, desde REGISTRO:", email);
-                return response.redirect("/?google=already_exists&email=" + encodeURIComponent(email) +
-                                       "&nombre=" + encodeURIComponent(displayName));
+                return response.redirect("/?view=login&google=already_exists&email=" + encodeURIComponent(email));
             }
         } else {
             // Usuario NO EXISTE - Guardar datos y pedir contraseña
@@ -222,21 +230,16 @@ app.get("/good", function (request, response) {
             // Guardar datos de Google en la sesión
             request.session.googleUserData = {
                 email: email,
-                nombre: nombre,
-                apellidos: apellidos,
-                displayName: displayName,
                 confirmada: true,
                 provider: 'google'
             };
 
             if (origin === 'login') {
                 // LOGIN: Mostrar modal en página de login
-                response.redirect("/?google=new_user&email=" + encodeURIComponent(email) +
-                                "&nombre=" + encodeURIComponent(displayName));
+                response.redirect("/?google=new_user&email=" + encodeURIComponent(email));
             } else {
                 // REGISTRO: Mostrar modal en página de registro
-                response.redirect("/?view=registro&google=new_user&email=" + encodeURIComponent(email) +
-                                "&nombre=" + encodeURIComponent(displayName));
+                response.redirect("/?view=registro&google=new_user&email=" + encodeURIComponent(email));
             }
         }
     });
@@ -270,8 +273,7 @@ app.get("/restablecerPassword/:email/:token", function (request, response) {
 app.get("/ok", function (request, response) {
     response.send({
         nick: request.user.email,
-        nombre: request.user.nombre,
-        apellidos: request.user.apellidos
+        username: request.user.username || request.user.email.split('@')[0]
     })
 });
 
@@ -386,10 +388,10 @@ app.post("/api/usuarios/info", haIniciado, function(request, response) {
 
 
 app.post("/completarRegistroGoogle", function (request, response) {
-    const { password } = request.body;
+    const { password, username } = request.body;
 
-    console.log("📝 [1/7] Completando registro de usuario Google");
-    console.log("📝 Datos recibidos - Password length:", password ? password.length : 0);
+    console.log("📝 [1/8] Completando registro de usuario Google");
+    console.log("📝 Datos recibidos - Password length:", password ? password.length : 0, "| Username:", username);
 
     // Verificar que existe la sesión con datos de Google
     if (!request.session.googleUserData) {
@@ -401,7 +403,26 @@ app.post("/completarRegistroGoogle", function (request, response) {
         });
     }
 
-    console.log("✅ [2/7] Sesión encontrada con datos de Google");
+    console.log("✅ [2/8] Sesión encontrada con datos de Google");
+
+    // Validar username
+    if (!username) {
+        console.warn("⚠️ Username no proporcionado");
+        return response.status(400).send({
+            success: false,
+            error: "El nombre de usuario es obligatorio"
+        });
+    }
+
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        console.warn("⚠️ Formato de username inválido");
+        return response.status(400).send({
+            success: false,
+            error: "El nombre de usuario debe tener entre 3 y 20 caracteres y solo puede contener letras, números y guiones bajos"
+        });
+    }
+
+    console.log("✅ [3/8] Username validado");
 
     // Validar contraseña
     if (!password || password.length < 8) {
@@ -412,28 +433,27 @@ app.post("/completarRegistroGoogle", function (request, response) {
         });
     }
 
-    console.log("✅ [3/7] Contraseña validada");
+    console.log("✅ [4/8] Contraseña validada");
 
     // Obtener datos de Google de la sesión
     const googleData = request.session.googleUserData;
-    console.log("📝 Datos de Google:", { email: googleData.email, nombre: googleData.nombre });
+    console.log("📝 Datos de Google:", { email: googleData.email, username: username });
 
     // Crear objeto de usuario completo
     const nuevoUsuario = {
         email: googleData.email,
         password: password,
-        nombre: googleData.nombre,
-        apellidos: googleData.apellidos,
+        username: username,
         confirmada: true, // Google OAuth está pre-verificado
         provider: 'google',
         fechaRegistro: new Date()
     };
 
-    console.log("📝 [4/7] Iniciando registro en BD...");
+    console.log("📝 [5/8] Iniciando registro en BD...");
 
     // Registrar usuario en la base de datos
     sistema.registrarUsuario(nuevoUsuario, function (res) {
-        console.log("📝 [5/7] Callback de registrarUsuario recibido");
+        console.log("📝 [6/8] Callback de registrarUsuario recibido");
         console.log("📝 Resultado:", res);
 
         if (res.email === -1) {
@@ -444,8 +464,8 @@ app.post("/completarRegistroGoogle", function (request, response) {
             });
         }
 
-        console.log("✅ Usuario Google registrado con contraseña:", res.email);
-        console.log("📝 [6/7] Buscando usuario para login automático...");
+        console.log("✅ Usuario Google registrado con contraseña:", res.email, "| Username:", res.username);
+        console.log("📝 [7/8] Buscando usuario para login automático...");
 
         // Buscar el usuario recién creado para hacer login
         sistema.buscarUsuarioPorEmail(res.email, function(usuario) {
@@ -477,7 +497,7 @@ app.post("/completarRegistroGoogle", function (request, response) {
                 // Limpiar datos de sesión temporal
                 delete request.session.googleUserData;
 
-                console.log("✅ [7/7] Login automático exitoso para:", usuario.email);
+                console.log("✅ [8/8] Login automático exitoso para:", usuario.email, "| Username:", usuario.username);
                 console.log("📝 Enviando respuesta SUCCESS al cliente...");
 
                 // Limpiar datos de sesión temporal
@@ -487,7 +507,7 @@ app.post("/completarRegistroGoogle", function (request, response) {
                 const responseData = {
                     success: true,
                     email: usuario.email,
-                    nombre: googleData.displayName
+                    username: usuario.username
                 };
 
                 console.log("📝 Datos de respuesta:", JSON.stringify(responseData));
@@ -502,12 +522,27 @@ app.post("/completarRegistroGoogle", function (request, response) {
 
 app.post("/registrarUsuario", function (request, response) {
     // Validar datos de entrada
-    const { email, password, nombre, apellidos } = request.body;
+    const { email, password, username } = request.body;
 
     if (!email || !password) {
         return response.status(400).send({
             nick: -1,
             error: "Email y contraseña son obligatorios"
+        });
+    }
+
+    if (!username) {
+        return response.status(400).send({
+            nick: -1,
+            error: "El nombre de usuario es obligatorio"
+        });
+    }
+
+    // Validar formato de username
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        return response.status(400).send({
+            nick: -1,
+            error: "El nombre de usuario debe tener entre 3 y 20 caracteres y solo puede contener letras, números y guiones bajos"
         });
     }
 
@@ -528,26 +563,12 @@ app.post("/registrarUsuario", function (request, response) {
         });
     }
 
-    // Validar nombre y apellidos si están presentes
-    if (nombre && /\d/.test(nombre)) {
-        return response.status(400).send({
-            nick: -1,
-            error: "El nombre no puede contener números"
-        });
-    }
-
-    if (apellidos && /\d/.test(apellidos)) {
-        return response.status(400).send({
-            nick: -1,
-            error: "Los apellidos no pueden contener números"
-        });
-    }
 
     sistema.registrarUsuario(request.body, function (res) {
         if (res.email === -1) {
             return response.status(409).send({
                 nick: -1,
-                error: "El email ya está registrado"
+                error: res.error || "Error al registrar usuario"
             });
         }
         response.send({"nick": res.email});
@@ -603,21 +624,9 @@ app.post('/loginUsuario', function(request, response, next) {
 
             console.log("✅ Login exitoso:", user.email);
 
-            // Construir el nombre completo
-            let nombreCompleto = '';
-            if (user.nombre && user.apellidos) {
-                nombreCompleto = user.nombre + ' ' + user.apellidos;
-            } else if (user.nombre) {
-                nombreCompleto = user.nombre;
-            } else {
-                nombreCompleto = user.email;
-            }
-
             return response.send({
                 "nick": user.email,
-                "nombre": user.nombre,
-                "apellidos": user.apellidos,
-                "nombreCompleto": nombreCompleto
+                "username": user.username || user.email.split('@')[0]
             });
         });
     })(request, response, next);
@@ -747,14 +756,14 @@ io.on('connection', (socket) => {
     socket.on('unirseGrupo', (data) => {
         const grupoId = typeof data === 'string' ? data : data.grupoId;
         const usuarioEmail = data.usuarioEmail;
-        const usuarioNombre = data.usuarioNombre;
+        const usuarioUsername = data.usuarioUsername;
 
         socket.join(grupoId);
 
         // Guardar información del usuario
         socket.grupoId = grupoId;
         socket.usuarioEmail = usuarioEmail;
-        socket.usuarioNombre = usuarioNombre;
+        socket.usuarioUsername = usuarioUsername;
 
         // Registrar usuario online en el grupo
         if (!usuariosOnlinePorGrupo[grupoId]) {
@@ -772,7 +781,7 @@ io.on('connection', (socket) => {
         // Ahora agregar el nuevo socket
         usuariosOnlinePorGrupo[grupoId][socket.id] = {
             email: usuarioEmail,
-            nombre: usuarioNombre
+            username: usuarioUsername
         };
 
         console.log(`👥 Socket ${socket.id} (${usuarioEmail}) se unió al grupo ${grupoId}`);
@@ -781,7 +790,7 @@ io.on('connection', (socket) => {
         socket.to(grupoId).emit('usuarioConectado', {
             grupoId: grupoId,
             email: usuarioEmail,
-            nombre: usuarioNombre
+            username: usuarioUsername
         });
 
         // Enviar lista actualizada de usuarios online a todos (sin duplicados)
@@ -814,7 +823,7 @@ io.on('connection', (socket) => {
             socket.to(grupoId).emit('usuarioDesconectado', {
                 grupoId: grupoId,
                 email: usuarioInfo.email,
-                nombre: usuarioInfo.nombre
+                username: usuarioInfo.username
             });
 
             // Enviar lista actualizada sin duplicados
@@ -883,7 +892,7 @@ io.on('connection', (socket) => {
             socket.to(grupoId).emit('usuarioDesconectado', {
                 grupoId: grupoId,
                 email: usuarioInfo.email,
-                nombre: usuarioInfo.nombre
+                username: usuarioInfo.username
             });
 
             // Enviar lista actualizada sin duplicados

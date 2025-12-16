@@ -1,18 +1,11 @@
 function ClienteRest() {
 
-    this.registrarUsuario = function (email, password, nombre, apellidos, callback) {
+    this.registrarUsuario = function (email, username, password, callback) {
         let userData = {
             "email": email,
+            "username": username,
             "password": password
         };
-
-        // Agregar nombre y apellidos si están presentes
-        if (nombre) {
-            userData.nombre = nombre;
-        }
-        if (apellidos) {
-            userData.apellidos = apellidos;
-        }
 
         $.ajax({
             type: 'POST',
@@ -24,7 +17,6 @@ function ClienteRest() {
 
                 if (data.nick != -1) {
                     console.log("Usuario " + data.nick + " ha sido registrado");
-                    let displayName = nombre || data.nick;
 
                     // Mostrar mensaje de verificación de correo
                     cw.mostrarMensajeInfo("¡Registro exitoso! Por favor, verifica tu correo electrónico (" + data.nick + ") para completar el registro. Te hemos enviado un enlace de verificación.");
@@ -42,22 +34,26 @@ function ClienteRest() {
                 // Restaurar el botón en caso de error
                 if (callback) callback();
 
-                console.error("❌ Error en login:");
+                console.error("❌ Error en registro:");
                 console.error("  Status HTTP:", xhr.status);
                 console.error("  Mensaje:", textStatus);
-                let mensajeError = "Error al registrar usuario. ";
-                if (xhr.status === 0) {
-                    mensajeError += "No se pudo conectar con el servidor. Verifica tu conexión a internet.";
+
+                // Intentar obtener el mensaje de error del servidor
+                let errorMsg = "Error al registrar usuario. ";
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                } else if (xhr.status === 0) {
+                    errorMsg += "No se pudo conectar con el servidor. Verifica tu conexión a internet.";
                 } else if (xhr.status === 400) {
-                    mensajeError += "Datos inválidos. Verifica que el email sea correcto.";
+                    errorMsg += "Datos inválidos. Verifica el formulario.";
                 } else if (xhr.status === 409) {
-                    mensajeError += "El email ya está registrado.";
+                    errorMsg += "El email o nombre de usuario ya está registrado.";
                 } else if (xhr.status === 500) {
-                    mensajeError += "Error del servidor. Intenta de nuevo más tarde.";
+                    errorMsg += "Error del servidor. Intenta de nuevo más tarde.";
                 } else {
-                    mensajeError += "Por favor, intenta de nuevo.";
+                    errorMsg += "Por favor, intenta de nuevo.";
                 }
-                cw.mostrarMensajeError(mensajeError);
+                cw.mostrarMensajeError(errorMsg);
             },
             contentType: 'application/json',
             timeout: 10000 // 10 segundos de timeout
@@ -79,17 +75,8 @@ function ClienteRest() {
                     console.log("✅ Usuario " + data.nick + " ha iniciado sesión");
                     $.cookie("nick", data.nick);
 
-                    // Construir el nombre completo para mostrar
-                    let displayName = '';
-                    if (data.nombreCompleto) {
-                        displayName = data.nombreCompleto;
-                    } else if (data.nombre && data.apellidos) {
-                        displayName = data.nombre + ' ' + data.apellidos;
-                    } else if (data.nombre) {
-                        displayName = data.nombre;
-                    } else {
-                        displayName = data.nick;
-                    }
+                    // Usar el username como displayName
+                    let displayName = data.username || data.nick;
 
                     $.cookie("userName", displayName);
                     console.log("✅ Cookies establecidas:", {nick: data.nick, userName: displayName});

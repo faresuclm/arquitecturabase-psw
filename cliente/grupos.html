@@ -629,7 +629,7 @@
 
                 // Mostrar nombre de usuario
                 document.getElementById('userInfo').textContent =
-                    `Bienvenido, ${usuarioActual.nombreCompleto}`;
+                    `Bienvenido, ${usuarioActual.username}`;
 
                 // Configurar eventos
                 configurarEventos();
@@ -747,11 +747,7 @@
                     const data = await response.json();
                     return {
                         email: data.nick,
-                        nombre: data.nombre,
-                        apellidos: data.apellidos,
-                        nombreCompleto: (data.nombre && data.apellidos)
-                            ? `${data.nombre} ${data.apellidos}`
-                            : data.nombre || data.nick
+                        username: data.username || data.nick.split('@')[0]
                     };
                 }
             } catch (error) {

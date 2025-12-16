@@ -49,6 +49,31 @@ function CAD() {
         buscar(this.usuarios, criterio, callback);
     }
 
+    this.buscarUsuarioPorUsername = function (username, callback) {
+        // Buscar con case-insensitive
+        this.usuarios.findOne({
+            username: { $regex: new RegExp('^' + username + '$', 'i') }
+        }, callback);
+    }
+
+    this.verificarUsernameDisponible = function (username, callback) {
+        console.log("🔍 Verificando disponibilidad de username:", username);
+
+        // Buscar con case-insensitive para evitar duplicados con diferentes mayúsculas
+        this.usuarios.find({
+            username: { $regex: new RegExp('^' + username + '$', 'i') }
+        }).toArray(function(error, usuarios) {
+            if (error) {
+                console.error("❌ Error al verificar username:", error);
+                callback(false); // En caso de error, decir que no está disponible por seguridad
+            } else {
+                const disponible = !usuarios || usuarios.length === 0;
+                console.log("📊 Username '" + username + "' disponible:", disponible, "| Encontrados:", usuarios ? usuarios.length : 0);
+                callback(disponible);
+            }
+        });
+    }
+
     this.insertarUsuario = function (usuario, callback) {
         insertar(this.usuarios, usuario, callback);
     }
