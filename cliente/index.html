@@ -27,44 +27,19 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        .navbar {
-            background: white !important;
-            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
-            padding: 15px 30px;
-        }
-
-        .navbar-brand {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 700 !important;
-            font-size: 28px !important;
-            letter-spacing: 1px;
-        }
-
-        .nav-link {
-            color: #5a6c7d !important;
-            font-weight: 500;
-            margin: 0 10px;
-            transition: all 0.3s ease;
-        }
-
-        #btnSalir {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-            color: white !important;
-            padding: 10px 24px !important;
-            border-radius: 10px !important;
-            font-weight: 600 !important;
-            transition: all 0.3s ease;
-        }
-
-        #btnSalir:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
-        }
 
         .container {
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 0;
+            margin-top: 0;
+            margin-bottom: 0;
+            max-width: 100%;
+        }
+
+        /* Estilos especiales para cuando se muestra el formulario de login/registro */
+        .container.auth-container-wrapper {
             background: white;
             border-radius: 20px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
@@ -111,17 +86,6 @@
 <!-- Contenedor de mensajes (posición fija en la parte superior) -->
 <div id="msg"></div>
 
-<nav class="navbar navbar-expand-sm" id="mainNav" style="display: none;">
-    <!-- Brand/logo -->
-    <a class="navbar-brand" href="#">esiiChat</a>
-
-    <!-- Links -->
-    <ul class="navbar-nav ml-auto">
-        <li class="nav-item">
-            <a class="nav-link" href="#" id="btnSalir" style="cursor: pointer;">Cerrar Sesión</a>
-        </li>
-    </ul>
-</nav>
 
 <div class="container" id="mainContainer">
     <div id="au"></div>
@@ -154,16 +118,7 @@
 <script defer>
     cw = new ControlWeb();
     rest = new ClienteRest(cw);
-    //cw.mostrarAgregarUsuario();
     cw.comprobarSesion();
-
-    // Configurar el botón de salir del nav
-    $(document).ready(function () {
-        $("#btnSalir").on("click", function (e) {
-            e.preventDefault();
-            cw.salir();
-        });
-    });
 </script>
 </body>
 

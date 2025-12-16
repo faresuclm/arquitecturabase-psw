@@ -94,24 +94,14 @@ function ClienteRest() {
                     $.cookie("userName", displayName);
                     console.log("✅ Cookies establecidas:", {nick: data.nick, userName: displayName});
 
-                    console.log("🔄 Iniciando redirección inmediata...");
+                    console.log("🔄 Redirigiendo después de login exitoso...");
 
-                    // Limpiar formularios
-                    cw.limpiar();
+                    // Restaurar el botón primero
+                    if (callback) callback();
 
-                    // Mostrar el navegador y ocultar el contenedor
-                    $("#mainNav").show();
-                    $("#mainContainer").hide();
-
-                    console.log("✅ Redirección completada");
-
-                    // Mostrar mensaje de bienvenida
-                    cw.mostrarMensaje("Bienvenido " + displayName);
-
-                    // Restaurar el botón AL FINAL con un pequeño delay para asegurar que la UI se actualice
-                    setTimeout(function() {
-                        if (callback) callback();
-                    }, 100);
+                    // Recargar la página para iniciar con estado limpio
+                    // Esto asegura que comprobarSesion() se ejecute correctamente
+                    window.location.replace('/');
                 } else {
                     console.warn("⚠️ Login rechazado - nick:", data.nick);
                     // Restaurar botón inmediatamente si falla
@@ -229,6 +219,114 @@ function ClienteRest() {
                 // No mostrar error al usuario ya que la sesión se cerrará de todas formas
             },
             contentType: 'application/json'
+        });
+    };
+
+    this.solicitarRecuperacionPassword = function (email, callback) {
+        console.log("📤 Enviando petición de recuperación de contraseña para:", email);
+        $.ajax({
+            type: 'POST',
+            url: '/solicitarRecuperacionPassword',
+            data: JSON.stringify({ email: email }),
+            contentType: 'application/json',
+            dataType: 'json',
+            success: function (data) {
+                console.log("📥 Respuesta recibida del servidor:", data);
+
+                // Restaurar el botón
+                if (callback) callback();
+
+                if (data.success) {
+                    console.log("✅ Email de recuperación enviado exitosamente");
+                    cw.mostrarMensajeExito("¡Correo enviado! Revisa tu bandeja de entrada para restablecer tu contraseña.");
+
+                    // Volver al login después de 3 segundos
+                    setTimeout(function() {
+                        cw.mostrarLogin();
+                    }, 3000);
+                } else {
+                    console.warn("⚠️ Error al enviar correo de recuperación");
+                    cw.mostrarMensajeError(data.error || "No se pudo enviar el correo de recuperación. Verifica que el correo esté registrado.");
+                }
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                // Restaurar el botón en caso de error
+                if (callback) callback();
+
+                console.error("❌ Error en solicitud de recuperación:", textStatus);
+                let mensajeError = "Error al solicitar recuperación de contraseña. ";
+                if (xhr.status === 0) {
+                    mensajeError += "No se pudo conectar con el servidor. Verifica tu conexión a internet.";
+                } else if (xhr.status === 404) {
+                    mensajeError += "No existe una cuenta con este correo electrónico.";
+                } else if (xhr.status === 500) {
+                    mensajeError += "Error del servidor. Intenta de nuevo más tarde.";
+                } else {
+                    mensajeError += "Por favor, intenta de nuevo.";
+                }
+                cw.mostrarMensajeError(mensajeError);
+            },
+            timeout: 10000
+        });
+    };
+
+    this.restablecerPassword = function (email, token, newPassword, callback) {
+        console.log("📤 Enviando petición de restablecimiento de contraseña para:", email);
+        $.ajax({
+            type: 'POST',
+            url: '/restablecerPassword',
+            data: JSON.stringify({
+                email: email,
+                token: token,
+                newPassword: newPassword
+            }),
+            contentType: 'application/json',
+            dataType: 'json',
+            success: function (data) {
+                console.log("📥 Respuesta recibida del servidor:", data);
+
+                // Restaurar el botón
+                if (callback) callback();
+
+                if (data.success) {
+                    console.log("✅ Contraseña restablecida exitosamente");
+                    cw.mostrarMensajeExito("¡Contraseña restablecida exitosamente! Ya puedes iniciar sesión con tu nueva contraseña.");
+
+                    // Volver al login después de 2 segundos
+                    setTimeout(function() {
+                        cw.mostrarLogin();
+                        // Pre-rellenar el email si está disponible
+                        if (email) {
+                            setTimeout(function() {
+                                $("#emailLogin").val(email);
+                            }, 500);
+                        }
+                    }, 2000);
+                } else {
+                    console.warn("⚠️ Error al restablecer contraseña");
+                    cw.mostrarMensajeError(data.error || "No se pudo restablecer la contraseña. El enlace puede haber expirado.");
+                }
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                // Restaurar el botón en caso de error
+                if (callback) callback();
+
+                console.error("❌ Error en restablecimiento de contraseña:", textStatus);
+                let mensajeError = "Error al restablecer la contraseña. ";
+                if (xhr.status === 0) {
+                    mensajeError += "No se pudo conectar con el servidor. Verifica tu conexión a internet.";
+                } else if (xhr.status === 400) {
+                    mensajeError += "El enlace es inválido o ha expirado. Solicita uno nuevo.";
+                } else if (xhr.status === 404) {
+                    mensajeError += "No existe una cuenta con este correo electrónico.";
+                } else if (xhr.status === 500) {
+                    mensajeError += "Error del servidor. Intenta de nuevo más tarde.";
+                } else {
+                    mensajeError += "Por favor, intenta de nuevo.";
+                }
+                cw.mostrarMensajeError(mensajeError);
+            },
+            timeout: 10000
         });
     };
 }

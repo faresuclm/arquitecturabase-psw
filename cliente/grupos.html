@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupos de Chat - esiiChat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Loader principal */
+        .main-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            transition: opacity 0.3s ease;
+            z-index: 9999;
+        }
+
+        .main-loader-spinner {
+            width: 64px;
+            height: 64px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .main-loader-text {
+            margin-top: 24px;
+            color: #64748b;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .main-loader-subtext {
+            margin-top: 8px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .grupos-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .grupos-container.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .header-section {
+            margin-bottom: 40px;
+        }
+
+        .chat-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .chat-title i {
+            color: #2563eb;
+            font-size: 28px;
+        }
+
+        .user-info {
+            color: #64748b;
+            font-size: 16px;
+            margin-top: 8px;
+        }
+
+        .chat-subtitle {
+            color: #64748b;
+            font-size: 16px;
+            margin-top: 12px;
+        }
+
+        .grupos-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 1200px) {
+            .grupos-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .grupo-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+            position: relative;
+        }
+
+        .grupo-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.15);
+            border-color: #2563eb;
+        }
+
+        .grupo-header {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .grupo-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .grupo-icon i {
+            color: white;
+            font-size: 24px;
+        }
+
+        .grupo-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .grupo-nombre {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .grupo-descripcion {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .grupo-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #eff6ff;
+            color: #2563eb;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .grupo-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .grupo-stats {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .grupo-stats i {
+            color: #94a3b8;
+            font-size: 16px;
+        }
+
+        .grupo-time {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .grupo-time i {
+            font-size: 14px;
+        }
+
+        .ultimo-mensaje {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #475569;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.5;
+        }
+
+        .no-grupos {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .no-grupos i {
+            font-size: 64px;
+            color: #cbd5e1;
+            margin-bottom: 16px;
+        }
+
+        #btnCerrarSesion:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        #btnCerrarSesion:active {
+            transform: translateY(0);
+        }
+
+        .btn-grupo-accion {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+        }
+
+        .btn-grupo-accion:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-grupo-accion:active {
+            transform: translateY(0);
+        }
+
+        .btn-grupo-accion:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-grupo-accion i {
+            font-size: 14px;
+        }
+
+        .btn-abandonar:hover {
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        /* Modales */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .modal-icon.info {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .modal-icon.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .modal-icon.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .modal-icon.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            flex: 1;
+        }
+
+        .modal-body {
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .modal-btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .modal-btn-secondary {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .modal-btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .modal-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .modal-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grupos-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .grupos-container {
+                padding: 20px 16px;
+            }
+
+            .chat-title {
+                font-size: 24px;
+            }
+
+            #btnCerrarSesion {
+                padding: 10px 16px !important;
+                font-size: 14px !important;
+            }
+
+            .header-section > div:first-child {
+                flex-direction: column;
+                gap: 16px;
+                align-items: stretch !important;
+            }
+
+            #btnCerrarSesion {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .modal {
+                width: 95%;
+                padding: 24px;
+            }
+
+            .modal-actions {
+                flex-direction: column;
+            }
+
+            .modal-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loader principal mientras carga -->
+    <div class="main-loader" id="mainLoader">
+        <div class="main-loader-spinner"></div>
+        <div class="main-loader-text">Cargando EsiiChat</div>
+        <div class="main-loader-subtext">Verificando sesión y cargando datos...</div>
+    </div>
+
+    <!-- Container principal (oculto hasta que cargue) -->
+    <div class="grupos-container" id="gruposContainer">
+        <div class="header-section">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                <div class="chat-title">
+                    <i class="fas fa-users"></i>
+                    EsiiChat - Grupos de Chat
+                </div>
+                <button id="btnCerrarSesion" style="
+                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 10px;
+                    font-weight: 600;
+                    font-size: 15px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+                ">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Cerrar Sesión
+                </button>
+            </div>
+            <div class="user-info" id="userInfo">Cargando...</div>
+            <div class="chat-subtitle">Selecciona un grupo para unirte a la conversación</div>
+        </div>
+
+        <div class="grupos-grid" id="gruposGrid">
+            <!-- Los grupos se cargarán dinámicamente aquí -->
+        </div>
+    </div>
+
+
+
+    <script src="/cliente/clienteRest.js"></script>
+    <script>
+        let usuarioActual = null;
+
+        // Inicializar inmediatamente (ejecutar cuando el script se carga)
+        (async function() {
+            // Evitar caché agresivo del navegador
+            if (performance.navigation && performance.navigation.type === 2) {
+                // Usuario llegó por botón "atrás" del navegador, forzar recarga
+                window.location.reload(true);
+                return;
+            }
+
+            // Esperar a que el DOM esté listo si es necesario
+            if (document.readyState === 'loading') {
+                await new Promise(resolve => {
+                    document.addEventListener('DOMContentLoaded', resolve);
+                });
+            }
+
+            await inicializar();
+        })();
+
+        async function inicializar() {
+            console.log('🚀 Inicializando aplicación de grupos...');
+
+            try {
+                // Actualizar mensaje del loader
+                actualizarLoader('Verificando sesión...');
+
+                // Verificar sesión primero
+                const sessionValid = await verificarSesionActiva();
+                if (!sessionValid) {
+                    console.error('❌ No hay sesión activa');
+                    // Limpiar todo antes de redirigir
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    window.location.replace('/');
+                    return;
+                }
+
+                // Actualizar mensaje del loader
+                actualizarLoader('Obteniendo información del usuario...');
+
+                // Obtener información del usuario
+                usuarioActual = await obtenerUsuarioActual();
+                if (!usuarioActual) {
+                    console.error('❌ Error al obtener datos del usuario');
+                    window.location.replace('/');
+                    return;
+                }
+
+                console.log('✅ Usuario autenticado:', usuarioActual.email);
+
+                // Actualizar mensaje del loader
+                actualizarLoader('Cargando grupos de chat...');
+
+                // Cargar grupos inmediatamente
+                await cargarGrupos();
+
+                // Mostrar nombre de usuario
+                document.getElementById('userInfo').textContent =
+                    `Bienvenido, ${usuarioActual.nombreCompleto}`;
+
+                // Configurar eventos
+                configurarEventos();
+
+                // TODO LISTO: Ocultar loader y mostrar UI
+                mostrarUI();
+
+                console.log('✅ Aplicación inicializada correctamente');
+            } catch (error) {
+                console.error('❌ Error durante la inicialización:', error);
+                mostrarErrorLoader('Error al cargar la aplicación. Por favor, recarga la página.');
+            }
+
+            // Auto-refresh de grupos cada 30 segundos para mantener la lista actualizada
+            setInterval(async () => {
+                console.log('🔄 Auto-refresh de grupos...');
+                try {
+                    const response = await fetch('/api/grupos', {
+                        credentials: 'include',
+                        cache: 'no-cache'
+                    });
+                    if (response.ok) {
+                        const grupos = await response.json();
+                        mostrarGrupos(grupos);
+                    }
+                } catch (error) {
+                    console.error('Error en auto-refresh:', error);
+                    // No mostrar error en auto-refresh para no interrumpir al usuario
+                }
+            }, 30000); // 30 segundos
+
+            console.log('✅ Aplicación inicializada correctamente');
+        }
+
+        function actualizarLoader(mensaje, submensaje = '') {
+            const loaderText = document.querySelector('.main-loader-text');
+            const loaderSubtext = document.querySelector('.main-loader-subtext');
+
+            if (loaderText) {
+                loaderText.textContent = mensaje;
+            }
+
+            if (loaderSubtext) {
+                loaderSubtext.textContent = submensaje || 'Por favor, espera...';
+            }
+        }
+
+        function mostrarErrorLoader(mensaje) {
+            const loader = document.getElementById('mainLoader');
+            if (loader) {
+                loader.innerHTML = `
+                    <div style="text-align: center;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 64px; color: #ef4444; margin-bottom: 24px;"></i>
+                        <div style="font-size: 18px; font-weight: 600; color: #1e293b; margin-bottom: 12px;">
+                            Error al cargar
+                        </div>
+                        <div style="font-size: 14px; color: #64748b; margin-bottom: 24px;">
+                            ${mensaje}
+                        </div>
+                        <button onclick="window.location.reload()" style="
+                            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                            color: white;
+                            border: none;
+                            padding: 12px 24px;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            font-size: 14px;
+                        ">
+                            <i class="fas fa-sync-alt"></i> Reintentar
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function mostrarUI() {
+            const loader = document.getElementById('mainLoader');
+            const container = document.getElementById('gruposContainer');
+
+            // Ocultar loader con transición suave
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                }, 300);
+            }
+
+            // Mostrar container con transición suave
+            if (container) {
+                container.classList.add('visible');
+            }
+        }
+
+        async function verificarSesionActiva() {
+            try {
+                const response = await fetch('/ok', {
+                    credentials: 'include',
+                    cache: 'no-store' // Forzar que no use caché
+                });
+                return response.ok;
+            } catch (error) {
+                console.error('Error al verificar sesión:', error);
+                return false;
+            }
+        }
+
+        async function obtenerUsuarioActual() {
+            try {
+                const response = await fetch('/ok', {
+                    credentials: 'include',
+                    cache: 'no-store' // Forzar que no use caché
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return {
+                        email: data.nick,
+                        nombre: data.nombre,
+                        apellidos: data.apellidos,
+                        nombreCompleto: (data.nombre && data.apellidos)
+                            ? `${data.nombre} ${data.apellidos}`
+                            : data.nombre || data.nick
+                    };
+                }
+            } catch (error) {
+                console.error('Error al obtener usuario:', error);
+            }
+            return null;
+        }
+
+        async function cargarGrupos(intentos = 3) {
+            console.log('🔄 Cargando grupos...');
+
+            // Mostrar indicador de carga
+            const grid = document.getElementById('gruposGrid');
+            grid.innerHTML = `
+                <div class="no-grupos">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <h3>Cargando grupos...</h3>
+                    <p>Espera un momento</p>
+                </div>
+            `;
+
+            try {
+                // Añadir timestamp para evitar caché del navegador
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/api/grupos?_t=${timestamp}`, {
+                    credentials: 'include',
+                    cache: 'no-store', // Forzar que no use caché
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+
+                if (response.ok) {
+                    const grupos = await response.json();
+                    console.log('✅ Grupos cargados:', grupos.length);
+                    mostrarGrupos(grupos);
+                } else if (response.status === 401) {
+                    // No autenticado, redirigir al login
+                    console.error('❌ No autenticado');
+                    alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+                    window.location.href = '/';
+                } else {
+                    throw new Error('Error al cargar grupos: ' + response.status);
+                }
+            } catch (error) {
+                console.error('❌ Error al cargar grupos:', error);
+
+                // Reintentar si quedan intentos
+                if (intentos > 1) {
+                    console.log(`⏳ Reintentando... (${intentos - 1} intentos restantes)`);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+                    return cargarGrupos(intentos - 1);
+                }
+
+                // Si no quedan intentos, mostrar error con opción de recargar
+                mostrarMensajeErrorConRecarga('No se pudieron cargar los grupos. Verifica tu conexión.');
+            }
+        }
+
+        function mostrarGrupos(grupos) {
+            const grid = document.getElementById('gruposGrid');
+            grid.innerHTML = '';
+
+            if (grupos.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-grupos">
+                        <i class="fas fa-hourglass-half"></i>
+                        <h3>Cargando grupos predeterminados...</h3>
+                        <p>Por favor espera un momento mientras se inicializan los grupos</p>
+                        <button onclick="cargarGrupos()" class="btn-recargar" style="margin-top: 16px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                            <i class="fas fa-sync-alt"></i> Recargar
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            grupos.forEach(grupo => {
+                const card = crearTarjetaGrupo(grupo);
+                grid.appendChild(card);
+            });
+        }
+
+        function crearTarjetaGrupo(grupo) {
+            const card = document.createElement('div');
+            card.className = 'grupo-card';
+
+            const esMiembro = grupo.miembros && grupo.miembros.includes(usuarioActual.email);
+            const esCreador = grupo.creador === usuarioActual.email;
+            const numMiembros = grupo.miembros ? grupo.miembros.length : 0;
+
+            let ultimoMensajeHTML = '';
+            if (grupo.ultimoMensaje) {
+                ultimoMensajeHTML = `
+                    <div class="ultimo-mensaje">
+                        <strong>${grupo.ultimoMensaje.autor}:</strong> ${grupo.ultimoMensaje.contenido}
+                    </div>
+                `;
+            }
+
+            const tiempoTranscurrido = grupo.fechaCreacion
+                ? calcularTiempoTranscurrido(grupo.fechaCreacion)
+                : '';
+
+            card.innerHTML = `
+                <div class="grupo-header">
+                    <div class="grupo-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="grupo-info">
+                        <div class="grupo-nombre">${escaparHTML(grupo.nombre)}</div>
+                        <div class="grupo-descripcion">${escaparHTML(grupo.descripcion || 'Sin descripción')}</div>
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            ${esMiembro ? '<span class="grupo-badge">Miembro</span>' : ''}
+                            ${esCreador ? '<span class="grupo-badge" style="background: #fef3c7; color: #f59e0b;">Creador</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+                ${ultimoMensajeHTML}
+                <div class="grupo-footer">
+                    <div class="grupo-stats">
+                        <i class="fas fa-user"></i>
+                        <span>${numMiembros} miembro${numMiembros !== 1 ? 's' : ''}</span>
+                    </div>
+                    ${tiempoTranscurrido ? `
+                        <div class="grupo-time">
+                            <i class="fas fa-clock"></i>
+                            <span>${tiempoTranscurrido}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                    ${esMiembro ? `
+                        <button class="btn-grupo-accion btn-abrir" data-grupo-id="${grupo.id}" style="flex: 1;">
+                            <i class="fas fa-comments"></i>
+                            Abrir Chat
+                        </button>
+                        <button class="btn-grupo-accion btn-abandonar" data-grupo-id="${grupo.id}" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); flex: 0;">
+                            <i class="fas fa-sign-out-alt"></i>
+                            Abandonar
+                        </button>
+                    ` : `
+                        <button class="btn-grupo-accion btn-unirse" data-grupo-id="${grupo.id}" style="flex: 1;">
+                            <i class="fas fa-user-plus"></i>
+                            Unirse al Grupo
+                        </button>
+                    `}
+                </div>
+            `;
+
+            // Agregar event listeners a los botones
+            const btnAbrir = card.querySelector('.btn-abrir');
+            const btnAbandonar = card.querySelector('.btn-abandonar');
+            const btnUnirse = card.querySelector('.btn-unirse');
+
+            if (btnAbrir) {
+                btnAbrir.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    abrirGrupo(grupo.id);
+                });
+            }
+
+            if (btnAbandonar) {
+                btnAbandonar.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    abandonarGrupo(grupo.id, grupo.nombre);
+                });
+            }
+
+            if (btnUnirse) {
+                btnUnirse.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    unirseAlGrupo(grupo.id, grupo.nombre);
+                });
+            }
+
+            return card;
+        }
+
+        async function abrirGrupo(grupoId) {
+            try {
+                // Solo redirigir al chat si ya es miembro
+                window.location.href = `/cliente/chat.html?id=${grupoId}`;
+            } catch (error) {
+                console.error('Error al abrir grupo:', error);
+                alert('Error al abrir el grupo');
+            }
+        }
+
+        async function unirseAlGrupo(grupoId, nombreGrupo) {
+            try {
+                console.log(`📝 Intentando unirse al grupo ${nombreGrupo}...`);
+
+                const response = await fetch(`/api/grupos/${grupoId}/unirse`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    console.log(`✅ Te has unido al grupo ${nombreGrupo}`);
+
+                    // Mostrar mensaje de éxito
+                    mostrarNotificacion(`Te has unido al grupo "${nombreGrupo}"`, 'success');
+
+                    // Recargar grupos para actualizar la UI
+                    await cargarGrupos();
+                } else {
+                    throw new Error(data.error || 'Error al unirse al grupo');
+                }
+            } catch (error) {
+                console.error('Error al unirse al grupo:', error);
+                mostrarNotificacion(error.message || 'Error al unirse al grupo', 'error');
+            }
+        }
+
+        async function abandonarGrupo(grupoId, nombreGrupo) {
+            confirmarAccion(
+                'Abandonar Grupo',
+                `¿Estás seguro de que quieres abandonar el grupo <strong>"${escaparHTML(nombreGrupo)}"</strong>?<br><br>
+                <span style="color: #64748b;">Podrás volver a unirte cuando quieras.</span>`,
+                async () => {
+                    await ejecutarAbandonarGrupo(grupoId, nombreGrupo);
+                }
+            );
+        }
+
+        async function ejecutarAbandonarGrupo(grupoId, nombreGrupo) {
+            try {
+                console.log(`📝 Intentando abandonar el grupo ${nombreGrupo}...`);
+
+                const response = await fetch(`/api/grupos/${grupoId}/salir`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    console.log(`✅ Has abandonado el grupo ${nombreGrupo}`);
+
+                    // Mostrar mensaje de éxito
+                    mostrarNotificacion(`Has abandonado el grupo "${nombreGrupo}"`, 'success');
+
+                    // Recargar grupos para actualizar la UI
+                    await cargarGrupos();
+                } else {
+                    throw new Error(data.error || 'Error al abandonar el grupo');
+                }
+            } catch (error) {
+                console.error('Error al abandonar el grupo:', error);
+                mostrarNotificacion(error.message || 'Error al abandonar el grupo', 'error');
+            }
+        }
+
+        function mostrarNotificacion(mensaje, tipo = 'info') {
+            // Crear elemento de notificación
+            const notif = document.createElement('div');
+            notif.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 16px 24px;
+                background: ${tipo === 'success' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' :
+                             tipo === 'error' ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' :
+                             'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'};
+                color: white;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+                z-index: 10000;
+                font-weight: 600;
+                font-size: 14px;
+                max-width: 400px;
+                animation: slideIn 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            `;
+
+            const icon = tipo === 'success' ? '✅' : tipo === 'error' ? '❌' : 'ℹ️';
+            notif.innerHTML = `<span style="font-size: 20px;">${icon}</span><span>${mensaje}</span>`;
+
+            document.body.appendChild(notif);
+
+            // Agregar animación
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                @keyframes slideOut {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Eliminar después de 4 segundos
+            setTimeout(() => {
+                notif.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(notif);
+                    document.head.removeChild(style);
+                }, 300);
+            }, 4000);
+        }
+
+        function configurarEventos() {
+            // Botón cerrar sesión
+            const btnCerrarSesion = document.getElementById('btnCerrarSesion');
+            if (btnCerrarSesion) {
+                btnCerrarSesion.addEventListener('click', async function() {
+                    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+                        // Mostrar indicador de carga en el botón
+                        btnCerrarSesion.disabled = true;
+                        btnCerrarSesion.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cerrando sesión...';
+
+                        try {
+                            // Timeout de seguridad de 5 segundos
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+                            // Hacer petición al servidor para cerrar sesión
+                            const response = await fetch('/cerrarSesion', {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                signal: controller.signal
+                            });
+
+                            clearTimeout(timeoutId);
+
+                            // Intentar leer respuesta pero no bloquear si falla
+                            try {
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    console.log('✅ Sesión cerrada en servidor:', data);
+                                }
+                            } catch (jsonError) {
+                                console.log('⚠️ No se pudo parsear JSON, continuando...');
+                            }
+
+                        } catch (error) {
+                            if (error.name === 'AbortError') {
+                                console.warn('⚠️ Timeout al cerrar sesión, continuando de todas formas...');
+                            } else {
+                                console.error('❌ Error al cerrar sesión:', error);
+                            }
+                        } finally {
+                            // SIEMPRE limpiar y redirigir, incluso si hay errores
+                            console.log('🧹 Limpiando datos del cliente...');
+                            document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                            document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                            localStorage.clear();
+                            sessionStorage.clear();
+
+                            console.log('🔄 Redirigiendo a página de inicio...');
+                            window.location.replace('/');
+                        }
+                    }
+                });
+            }
+        }
+
+
+
+        function mostrarMensajeError(mensaje) {
+            const grid = document.getElementById('gruposGrid');
+            grid.innerHTML = `
+                <div class="no-grupos">
+                    <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                    <h3>Error</h3>
+                    <p>${mensaje}</p>
+                </div>
+            `;
+        }
+
+        function mostrarMensajeErrorConRecarga(mensaje) {
+            const grid = document.getElementById('gruposGrid');
+            grid.innerHTML = `
+                <div class="no-grupos">
+                    <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                    <h3>Error al cargar grupos</h3>
+                    <p>${mensaje}</p>
+                    <button onclick="cargarGrupos()" class="btn-recargar" style="margin-top: 16px; padding: 12px 24px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: auto;">
+                        <i class="fas fa-sync-alt"></i> Reintentar
+                    </button>
+                </div>
+            `;
+        }
+
+        function calcularTiempoTranscurrido(fecha) {
+            const ahora = new Date();
+            const fechaGrupo = new Date(fecha);
+            const diferencia = ahora - fechaGrupo;
+
+            const minutos = Math.floor(diferencia / 60000);
+            const horas = Math.floor(diferencia / 3600000);
+            const dias = Math.floor(diferencia / 86400000);
+
+            if (minutos < 1) return 'Ahora';
+            if (minutos < 60) return `Hace ${minutos}m`;
+            if (horas < 24) return `Hace ${horas}h`;
+            if (dias < 7) return `Hace ${dias}d`;
+            return fechaGrupo.toLocaleDateString('es-ES');
+        }
+
+        function escaparHTML(texto) {
+            const div = document.createElement('div');
+            div.textContent = texto;
+            return div.innerHTML;
+        }
+
+        // ============= FUNCIONES DE MODALES =============
+
+        function mostrarModal(tipo, titulo, mensaje, acciones = []) {
+            const overlay = document.getElementById('modalOverlay');
+            const modal = document.getElementById('modal');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            const modalActions = document.getElementById('modalActions');
+
+            // Configurar icono según tipo
+            const iconos = {
+                info: '<i class="fas fa-info-circle"></i>',
+                success: '<i class="fas fa-check-circle"></i>',
+                warning: '<i class="fas fa-exclamation-triangle"></i>',
+                error: '<i class="fas fa-times-circle"></i>'
+            };
+
+            modalIcon.className = `modal-icon ${tipo}`;
+            modalIcon.innerHTML = iconos[tipo] || iconos.info;
+            modalTitle.textContent = titulo;
+            modalBody.innerHTML = mensaje;
+
+            // Limpiar acciones anteriores
+            modalActions.innerHTML = '';
+
+            // Agregar acciones
+            acciones.forEach(accion => {
+                const btn = document.createElement('button');
+                btn.className = `modal-btn ${accion.clase || 'modal-btn-primary'}`;
+                btn.textContent = accion.texto;
+                btn.onclick = () => {
+                    cerrarModal();
+                    if (accion.callback) accion.callback();
+                };
+                modalActions.appendChild(btn);
+            });
+
+            overlay.classList.add('active');
+        }
+
+        function cerrarModal() {
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.remove('active');
+        }
+
+        function mostrarModalCrearGrupo() {
+            const overlay = document.getElementById('modalOverlay');
+            const modal = document.getElementById('modal');
+
+            modal.innerHTML = `
+                <div class="modal-header">
+                    <div class="modal-icon info">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    <div class="modal-title">Crear Nuevo Grupo</div>
+                </div>
+                <div class="modal-body">
+                    <label style="display: block; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
+                        Nombre del grupo <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="text" id="nuevoGrupoNombre" class="modal-input"
+                           placeholder="Ej: Desarrollo Web" maxlength="50" required>
+
+                    <label style="display: block; font-weight: 600; color: #1e293b; margin-bottom: 8px; margin-top: 12px;">
+                        Descripción
+                    </label>
+                    <textarea id="nuevoGrupoDescripcion" class="modal-textarea"
+                              placeholder="Describe el propósito del grupo..." maxlength="200"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn modal-btn-secondary" onclick="cerrarModal()">
+                        Cancelar
+                    </button>
+                    <button class="modal-btn modal-btn-primary" onclick="crearGrupoDesdeModal()">
+                        <i class="fas fa-plus"></i> Crear Grupo
+                    </button>
+                </div>
+            `;
+
+            overlay.classList.add('active');
+        }
+
+        async function crearGrupoDesdeModal() {
+            const nombre = document.getElementById('nuevoGrupoNombre').value.trim();
+            const descripcion = document.getElementById('nuevoGrupoDescripcion').value.trim();
+
+            if (!nombre) {
+                mostrarNotificacion('El nombre del grupo es obligatorio', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/grupos', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ nombre, descripcion })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.id) {
+                    cerrarModal();
+                    mostrarNotificacion(`Grupo "${nombre}" creado exitosamente`, 'success');
+                    await cargarGrupos();
+                } else {
+                    throw new Error(data.error || 'Error al crear el grupo');
+                }
+            } catch (error) {
+                console.error('Error al crear grupo:', error);
+                mostrarNotificacion(error.message || 'Error al crear el grupo', 'error');
+            }
+        }
+
+        function mostrarModalInfoGrupo(grupo) {
+            const esMiembro = grupo.miembros && grupo.miembros.includes(usuarioActual.email);
+            const esCreador = grupo.creador === usuarioActual.email;
+
+            mostrarModal('info', 'Información del Grupo', `
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Nombre:</strong>
+                    <div style="color: #64748b; margin-top: 4px;">${escaparHTML(grupo.nombre)}</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Descripción:</strong>
+                    <div style="color: #64748b; margin-top: 4px;">${escaparHTML(grupo.descripcion || 'Sin descripción')}</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Miembros:</strong>
+                    <div style="color: #64748b; margin-top: 4px;">${grupo.miembros ? grupo.miembros.length : 0} miembro(s)</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: #1e293b;">Tu estado:</strong>
+                    <div style="margin-top: 8px;">
+                        ${esMiembro ? '<span class="grupo-badge">Miembro</span>' : '<span style="color: #64748b;">No eres miembro</span>'}
+                        ${esCreador ? '<span class="grupo-badge" style="background: #fef3c7; color: #f59e0b; margin-left: 8px;">Creador</span>' : ''}
+                    </div>
+                </div>
+            `, [
+                { texto: 'Cerrar', clase: 'modal-btn-secondary' }
+            ]);
+        }
+
+        function confirmarAccion(titulo, mensaje, callback) {
+            mostrarModal('warning', titulo, mensaje, [
+                { texto: 'Cancelar', clase: 'modal-btn-secondary' },
+                { texto: 'Confirmar', clase: 'modal-btn-danger', callback: callback }
+            ]);
+        }
+    </script>
+
+    <!-- Modales -->
+    <div class="modal-overlay" id="modalOverlay" onclick="if(event.target === this) cerrarModal()">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <div class="modal-icon info" id="modalIcon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="modal-title" id="modalTitle">Título del Modal</div>
+            </div>
+            <div class="modal-body" id="modalBody">
+                Contenido del modal
+            </div>
+            <div class="modal-actions" id="modalActions">
+                <button class="modal-btn modal-btn-primary" onclick="cerrarModal()">Aceptar</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

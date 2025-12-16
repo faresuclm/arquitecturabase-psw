@@ -1,13 +1,17 @@
-require('dotenv').config();
+const config = require("./config/config");
 const bodyParser = require("body-parser");
 const fs = require("fs");
 const express = require("express");
 const cookieSession = require("cookie-session");
 const app = express();
+const http = require("http");
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(server);
 const LocalStrategy = require('passport-local').Strategy;
 const passport = require("./servidor/passport-setup");
 const modelo = require("./servidor/modelo.js");
-const PORT = parseInt(process.env.PORT) || 8080;
+const PORT = config.server.port;
 const haIniciado = function (request, response, next) {
     if (request.user) {
         next();
@@ -46,8 +50,8 @@ app.get("/fallo", function (request, response) {
 // Endpoint para obtener configuración del cliente
 app.get("/api/config", function (request, response) {
     response.json({
-        GCLIENT_ID: process.env.GCLIENT_ID,
-        GCALLBACK_URI: process.env.GCALLBACK_URI
+        GCLIENT_ID: config.google.clientId,
+        GCALLBACK_URI: config.google.callbackUri
     });
 });
 
@@ -96,12 +100,22 @@ app.get("/eliminarUsuario/:nick", function (request, response) {
 // Ruta para LOGIN con Google
 app.get(
     "/auth/google/login",
+    function(req, res, next) {
+        req.session.googleOrigin = 'login';
+        console.log("🔵 Iniciando Google OAuth desde LOGIN");
+        next();
+    },
     passport.authenticate("google", {scope: ["profile", "email"]})
 );
 
 // Ruta para REGISTRO con Google
 app.get(
     "/auth/google/registro",
+    function(req, res, next) {
+        req.session.googleOrigin = 'registro';
+        console.log("🟢 Iniciando Google OAuth desde REGISTRO");
+        next();
+    },
     passport.authenticate("google", {scope: ["profile", "email"]})
 );
 
@@ -111,15 +125,17 @@ app.get(
     function (req, res) {
         console.log("🔐 Google callback exitoso");
         console.log("Usuario autenticado:", req.user ? "Sí" : "No");
+        console.log("Estructura completa de req.user:", JSON.stringify(req.user, null, 2));
+
         if (req.user) {
             console.log("Email del usuario:", req.user.emails ? req.user.emails[0].value : "No disponible");
+            console.log("Display Name:", req.user.displayName);
+            console.log("Name:", JSON.stringify(req.user.name));
         }
 
-        // Detectar de dónde viene usando el referer
-        const referer = req.get('referer') || '';
-        const origin = referer.includes('view=registro') ? 'registro' : 'login';
-        req.session.googleOrigin = origin;
-        console.log("🔍 Origen detectado:", origin, "| Referer:", referer);
+        // El origen ya fue guardado en la sesión antes de la autenticación
+        const origin = req.session.googleOrigin || 'login';
+        console.log("🔍 Origen desde sesión:", origin);
 
         res.redirect("/good");
     }
@@ -244,6 +260,13 @@ app.get("/confirmarUsuario/:email/:key", function (request, response) {
     });
 })
 
+app.get("/restablecerPassword/:email/:token", function (request, response) {
+    let email = request.params.email;
+    let token = request.params.token;
+    // Redirigir al frontend con los parámetros para restablecer la contraseña
+    response.redirect('/?resetPassword=true&email=' + encodeURIComponent(email) + '&token=' + encodeURIComponent(token));
+});
+
 app.get("/ok", function (request, response) {
     response.send({
         nick: request.user.email,
@@ -261,6 +284,105 @@ app.post('/oneTap/callback',
         console.log("🔐 Google One Tap: Autenticación exitosa");
         res.redirect('/good');
     });
+
+
+// ===================== ENDPOINTS DE GRUPOS =====================
+
+app.get("/api/grupos", haIniciado, function(request, response) {
+    sistema.obtenerGrupos(function(grupos) {
+        response.json(grupos);
+    });
+});
+
+
+app.get("/api/grupos/:grupoId", haIniciado, function(request, response) {
+    const grupoId = request.params.grupoId;
+    sistema.obtenerGrupo(grupoId, function(grupo) {
+        if (!grupo) {
+            return response.status(404).json({ error: "Grupo no encontrado" });
+        }
+        response.json(grupo);
+    });
+});
+
+app.post("/api/grupos/:grupoId/unirse", haIniciado, function(request, response) {
+    const grupoId = request.params.grupoId;
+    const emailUsuario = request.user.email;
+
+    console.log(`📝 Solicitud de unión: Usuario ${emailUsuario} -> Grupo ${grupoId}`);
+
+    sistema.unirseAGrupo(grupoId, emailUsuario, function(grupo) {
+        if (!grupo) {
+            console.error(`❌ Error: Grupo ${grupoId} no encontrado`);
+            return response.status(404).json({
+                success: false,
+                error: "Grupo no encontrado"
+            });
+        }
+        if (grupo.id === -1) {
+            console.error(`❌ Error al unirse al grupo ${grupoId}`);
+            return response.status(500).json({
+                success: false,
+                error: grupo.error || "Error al unirse al grupo"
+            });
+        }
+        console.log(`✅ Usuario ${emailUsuario} se unió exitosamente al grupo ${grupoId}`);
+        response.json({
+            success: true,
+            grupo: grupo,
+            mensaje: "Te has unido al grupo exitosamente"
+        });
+    });
+});
+
+app.post("/api/grupos/:grupoId/salir", haIniciado, function(request, response) {
+    const grupoId = request.params.grupoId;
+    const emailUsuario = request.user.email;
+
+    console.log(`📝 Solicitud para abandonar grupo: Usuario ${emailUsuario} <- Grupo ${grupoId}`);
+
+    sistema.salirDeGrupo(grupoId, emailUsuario, function(grupo) {
+        if (!grupo) {
+            console.error(`❌ Error: Grupo ${grupoId} no encontrado`);
+            return response.status(404).json({
+                success: false,
+                error: "Grupo no encontrado"
+            });
+        }
+        if (grupo.id === -1) {
+            console.error(`❌ Error: ${grupo.error}`);
+            return response.status(500).json({
+                success: false,
+                error: grupo.error || "Error al abandonar el grupo"
+            });
+        }
+        console.log(`✅ Usuario ${emailUsuario} abandonó exitosamente el grupo ${grupoId}`);
+        response.json({
+            success: true,
+            grupo: grupo,
+            mensaje: "Has abandonado el grupo exitosamente"
+        });
+    });
+});
+
+app.get("/api/grupos/:grupoId/mensajes", haIniciado, function(request, response) {
+    const grupoId = request.params.grupoId;
+    sistema.obtenerMensajes(grupoId, function(mensajes) {
+        response.json(mensajes);
+    });
+});
+
+app.post("/api/usuarios/info", haIniciado, function(request, response) {
+    const { emails } = request.body;
+
+    if (!emails || !Array.isArray(emails)) {
+        return response.status(400).json({ error: "Se requiere un array de emails" });
+    }
+
+    sistema.obtenerInfoUsuarios(emails, function(usuarios) {
+        response.json(usuarios);
+    });
+});
 
 
 app.post("/completarRegistroGoogle", function (request, response) {
@@ -502,17 +624,293 @@ app.post('/loginUsuario', function(request, response, next) {
 });
 
 app.post("/cerrarSesion", function (request, response) {
-    let nick = request.body.nick;
-    console.log("Usuario " + nick + " ha cerrado sesión");
-    // Aquí podrías agregar lógica adicional como:
-    // - Registrar el logout en la base de datos
-    // - Actualizar el estado del usuario
-    // - Limpiar recursos asociados
-    response.send({"resultado": "sesion_cerrada", "nick": nick});
+    // Guardar email antes de destruir la sesión
+    let email = null;
+    if (request.user && request.user.email) {
+        email = request.user.email;
+    }
+
+    console.log("🔐 Usuario cerrando sesión:", email || "desconocido");
+
+    // Si no hay usuario en la sesión, devolver éxito de todas formas
+    if (!request.user) {
+        console.log("⚠️ No hay sesión activa para cerrar");
+        return response.json({
+            success: true,
+            mensaje: "No había sesión activa"
+        });
+    }
+
+    // Limpiar sesión de Passport
+    request.logout(function(err) {
+        if (err) {
+            console.error("❌ Error al cerrar sesión:", err);
+            return response.status(500).json({
+                success: false,
+                error: "Error al cerrar sesión"
+            });
+        }
+
+        // Limpiar cookie de sesión ANTES de destruir la sesión
+        response.clearCookie('connect.sid');
+        response.clearCookie('Sistema');
+
+        // Eliminar usuario del sistema si existe
+        if (email) {
+            try {
+                sistema.eliminarUsuario(email);
+                console.log("✅ Usuario eliminado del sistema:", email);
+            } catch (error) {
+                console.error("⚠️ Error al eliminar usuario:", error);
+            }
+        }
+
+        // Destruir la sesión completamente
+        request.session.destroy(function(err) {
+            if (err) {
+                console.error("⚠️ Error al destruir sesión:", err);
+                // Aún así enviamos respuesta exitosa
+            }
+
+            console.log("✅ Sesión cerrada correctamente para:", email);
+
+            // Enviar respuesta JSON
+            response.json({
+                success: true,
+                mensaje: "Sesión cerrada correctamente"
+            });
+        });
+    });
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`App está escuchando en el puerto ${PORT}`);
+app.post("/solicitarRecuperacionPassword", function (request, response) {
+    const { email } = request.body;
+
+    if (!email) {
+        return response.status(400).send({
+            success: false,
+            error: "El correo electrónico es obligatorio"
+        });
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return response.status(400).send({
+            success: false,
+            error: "Formato de email inválido"
+        });
+    }
+
+    sistema.solicitarRecuperacionPassword(email, function (res) {
+        if (!res.success) {
+            return response.status(404).send(res);
+        }
+        response.send(res);
+    });
+});
+
+app.post("/restablecerPassword", function (request, response) {
+    const { email, token, newPassword } = request.body;
+
+    if (!email || !token || !newPassword) {
+        return response.status(400).send({
+            success: false,
+            error: "Datos incompletos"
+        });
+    }
+
+    if (newPassword.length < 8) {
+        return response.status(400).send({
+            success: false,
+            error: "La contraseña debe tener al menos 8 caracteres"
+        });
+    }
+
+    sistema.restablecerPassword(email, token, newPassword, function (res) {
+        if (!res.success) {
+            return response.status(400).send(res);
+        }
+        response.send(res);
+    });
+});
+
+// ===================== CONFIGURACIÓN DE SOCKET.IO =====================
+// Estructura para rastrear usuarios online por grupo
+// { grupoId: { socketId: { email, nombre } } }
+const usuariosOnlinePorGrupo = {};
+
+io.on('connection', (socket) => {
+    console.log('🔌 Usuario conectado:', socket.id);
+
+    // Unirse a un grupo (sala)
+    socket.on('unirseGrupo', (data) => {
+        const grupoId = typeof data === 'string' ? data : data.grupoId;
+        const usuarioEmail = data.usuarioEmail;
+        const usuarioNombre = data.usuarioNombre;
+
+        socket.join(grupoId);
+
+        // Guardar información del usuario
+        socket.grupoId = grupoId;
+        socket.usuarioEmail = usuarioEmail;
+        socket.usuarioNombre = usuarioNombre;
+
+        // Registrar usuario online en el grupo
+        if (!usuariosOnlinePorGrupo[grupoId]) {
+            usuariosOnlinePorGrupo[grupoId] = {};
+        }
+
+        // Primero, eliminar cualquier socket antiguo del mismo usuario (evitar duplicados)
+        for (const socketId in usuariosOnlinePorGrupo[grupoId]) {
+            if (usuariosOnlinePorGrupo[grupoId][socketId].email === usuarioEmail && socketId !== socket.id) {
+                console.log(`🔄 Removiendo socket antiguo ${socketId} del usuario ${usuarioEmail}`);
+                delete usuariosOnlinePorGrupo[grupoId][socketId];
+            }
+        }
+
+        // Ahora agregar el nuevo socket
+        usuariosOnlinePorGrupo[grupoId][socket.id] = {
+            email: usuarioEmail,
+            nombre: usuarioNombre
+        };
+
+        console.log(`👥 Socket ${socket.id} (${usuarioEmail}) se unió al grupo ${grupoId}`);
+
+        // Notificar a otros usuarios que este usuario se conectó
+        socket.to(grupoId).emit('usuarioConectado', {
+            grupoId: grupoId,
+            email: usuarioEmail,
+            nombre: usuarioNombre
+        });
+
+        // Enviar lista actualizada de usuarios online a todos (sin duplicados)
+        const usuariosOnlineSet = new Set();
+        Object.values(usuariosOnlinePorGrupo[grupoId] || {}).forEach(u => {
+            usuariosOnlineSet.add(u.email);
+        });
+        const usuariosOnline = Array.from(usuariosOnlineSet);
+
+        io.to(grupoId).emit('usuariosOnlineActualizados', {
+            grupoId: grupoId,
+            usuarios: usuariosOnline
+        });
+
+        console.log(`📊 Usuarios online únicos en grupo ${grupoId}:`, usuariosOnline);
+    });
+
+    // Salir de un grupo
+    socket.on('salirGrupo', (grupoId) => {
+        socket.leave(grupoId);
+
+        // Remover usuario de la lista de online
+        if (usuariosOnlinePorGrupo[grupoId] && usuariosOnlinePorGrupo[grupoId][socket.id]) {
+            const usuarioInfo = usuariosOnlinePorGrupo[grupoId][socket.id];
+            delete usuariosOnlinePorGrupo[grupoId][socket.id];
+
+            console.log(`👋 Socket ${socket.id} (${usuarioInfo.email}) salió del grupo ${grupoId}`);
+
+            // Notificar a otros usuarios
+            socket.to(grupoId).emit('usuarioDesconectado', {
+                grupoId: grupoId,
+                email: usuarioInfo.email,
+                nombre: usuarioInfo.nombre
+            });
+
+            // Enviar lista actualizada sin duplicados
+            const usuariosOnlineSet = new Set();
+            Object.values(usuariosOnlinePorGrupo[grupoId] || {}).forEach(u => {
+                usuariosOnlineSet.add(u.email);
+            });
+            const usuariosOnline = Array.from(usuariosOnlineSet);
+
+            io.to(grupoId).emit('usuariosOnlineActualizados', {
+                grupoId: grupoId,
+                usuarios: usuariosOnline
+            });
+
+            // Limpiar grupo si está vacío
+            if (Object.keys(usuariosOnlinePorGrupo[grupoId]).length === 0) {
+                delete usuariosOnlinePorGrupo[grupoId];
+            }
+        }
+    });
+
+    // Recibir y broadcast mensaje
+    socket.on('enviarMensaje', (mensaje) => {
+        console.log('💬 Mensaje recibido para grupo:', mensaje.grupoId);
+
+        // Guardar en base de datos
+        sistema.enviarMensaje(mensaje, function(mensajeGuardado) {
+            if (mensajeGuardado && mensajeGuardado.id !== -1) {
+                // Enviar a todos en la sala incluyendo al emisor
+                io.to(mensaje.grupoId).emit('nuevoMensaje', mensajeGuardado);
+                console.log('✅ Mensaje enviado a sala:', mensaje.grupoId);
+            } else {
+                console.error('❌ Error al guardar mensaje');
+                socket.emit('errorMensaje', { error: 'Error al enviar el mensaje' });
+            }
+        });
+    });
+
+    // Usuario está escribiendo
+    socket.on('escribiendo', (data) => {
+        socket.to(data.grupoId).emit('usuarioEscribiendo', {
+            nombreUsuario: data.nombreUsuario,
+            grupoId: data.grupoId
+        });
+    });
+
+    // Usuario dejó de escribir
+    socket.on('dejoDeEscribir', (data) => {
+        socket.to(data.grupoId).emit('usuarioDejoDeEscribir', {
+            nombreUsuario: data.nombreUsuario,
+            grupoId: data.grupoId
+        });
+    });
+
+    // Desconexión
+    socket.on('disconnect', () => {
+        console.log('🔌 Usuario desconectado:', socket.id);
+
+        // Limpiar usuario de todos los grupos
+        const grupoId = socket.grupoId;
+        if (grupoId && usuariosOnlinePorGrupo[grupoId] && usuariosOnlinePorGrupo[grupoId][socket.id]) {
+            const usuarioInfo = usuariosOnlinePorGrupo[grupoId][socket.id];
+            delete usuariosOnlinePorGrupo[grupoId][socket.id];
+
+            // Notificar a otros usuarios
+            socket.to(grupoId).emit('usuarioDesconectado', {
+                grupoId: grupoId,
+                email: usuarioInfo.email,
+                nombre: usuarioInfo.nombre
+            });
+
+            // Enviar lista actualizada sin duplicados
+            const usuariosOnlineSet = new Set();
+            Object.values(usuariosOnlinePorGrupo[grupoId] || {}).forEach(u => {
+                usuariosOnlineSet.add(u.email);
+            });
+            const usuariosOnline = Array.from(usuariosOnlineSet);
+
+            io.to(grupoId).emit('usuariosOnlineActualizados', {
+                grupoId: grupoId,
+                usuarios: usuariosOnline
+            });
+
+            // Limpiar grupo si está vacío
+            if (Object.keys(usuariosOnlinePorGrupo[grupoId]).length === 0) {
+                delete usuariosOnlinePorGrupo[grupoId];
+            }
+
+            console.log(`🧹 Usuario ${usuarioInfo.email} eliminado del grupo ${grupoId}`);
+        }
+    });
+});
+
+server.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
+    console.log(`🔌 WebSocket habilitado en el puerto ${PORT}`);
     console.log("Ctrl+C para salir");
 }).on('error', (err) => {
     console.error('Error al iniciar el servidor:', err);

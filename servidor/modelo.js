@@ -6,10 +6,14 @@ const SALT_ROUNDS = 10; // Número de rondas para el salt de bcrypt
 
 function Sistema() {
     this.usuarios = {};
+    this.grupos = {};
     this.cad = new datos.CAD();
+    let sistema = this;
 
     this.cad.conectar(function (db) {
         console.log("Conectado a Mongo Atlas");
+        // Inicializar grupos predeterminados
+        sistema.inicializarGruposPredeterminados();
     });
 
     this.verificarUsuarioGoogle = function (email, callback) {
@@ -247,7 +251,6 @@ function Sistema() {
         });
     }
 
-
     this.confirmarUsuario = function (obj, callback) {
         let modelo = this;
         this.cad.buscarUsuario({"email": obj.email, "confirmada": false, "key": obj.key}, function (usr) {
@@ -260,6 +263,307 @@ function Sistema() {
                 callback({"email": -1});
             }
         })
+    }
+
+    this.solicitarRecuperacionPassword = function (email, callback) {
+        let modelo = this;
+
+        // Buscar el usuario por email
+        this.cad.buscarUsuario({"email": email}, function (usr) {
+            if (!usr) {
+                console.log("Usuario no encontrado para recuperación:", email);
+                return callback({"success": false, "error": "No existe una cuenta con este correo"});
+            }
+
+            // Verificar que es un usuario local (no de Google sin contraseña)
+            if (usr.provider === 'google' && !usr.password) {
+                console.log("Usuario de Google sin contraseña:", email);
+                return callback({
+                    "success": false,
+                    "error": "Esta cuenta fue creada con Google. Por favor, inicia sesión con Google."
+                });
+            }
+
+            // Generar token de recuperación (timestamp + random)
+            const resetToken = Date.now().toString() + Math.random().toString(36).substring(2, 15);
+            const resetTokenExpiry = Date.now() + 3600000; // 1 hora desde ahora
+
+            // Actualizar usuario con el token
+            usr.resetToken = resetToken;
+            usr.resetTokenExpiry = resetTokenExpiry;
+
+            modelo.cad.actualizarUsuario(usr, function (res) {
+                if (res && res.email) {
+                    console.log("✅ Token de recuperación generado para:", email);
+
+                    // Enviar email con el token
+                    correo.enviarEmailRecuperacion(email, resetToken);
+
+                    callback({"success": true, "email": email});
+                } else {
+                    console.error("❌ Error al actualizar usuario con token de recuperación");
+                    callback({"success": false, "error": "Error al procesar la solicitud"});
+                }
+            });
+        });
+    }
+
+    this.restablecerPassword = function (email, token, newPassword, callback) {
+        let modelo = this;
+
+        // Buscar el usuario por email y token
+        this.cad.buscarUsuario({"email": email, "resetToken": token}, function (usr) {
+            if (!usr) {
+                console.log("Usuario o token no válido para restablecimiento:", email);
+                return callback({"success": false, "error": "Enlace inválido o expirado"});
+            }
+
+            // Verificar que el token no haya expirado
+            if (!usr.resetTokenExpiry || Date.now() > usr.resetTokenExpiry) {
+                console.log("Token expirado para:", email);
+                return callback({"success": false, "error": "El enlace ha expirado. Solicita uno nuevo."});
+            }
+
+            // Validar la nueva contraseña
+            if (!newPassword || newPassword.length < 8) {
+                return callback({"success": false, "error": "La contraseña debe tener al menos 8 caracteres"});
+            }
+
+            // Cifrar la nueva contraseña
+            bcrypt.hash(newPassword, SALT_ROUNDS, function(err, hash) {
+                if (err) {
+                    console.error("Error al cifrar la nueva contraseña:", err);
+                    return callback({"success": false, "error": "Error al procesar la contraseña"});
+                }
+
+                // Actualizar la contraseña y eliminar el token
+                usr.password = hash;
+                delete usr.resetToken;
+                delete usr.resetTokenExpiry;
+
+                modelo.cad.actualizarUsuario(usr, function (res) {
+                    if (res && res.email) {
+                        console.log("✅ Contraseña restablecida exitosamente para:", email);
+                        callback({"success": true, "email": email});
+                    } else {
+                        console.error("❌ Error al actualizar contraseña");
+                        callback({"success": false, "error": "Error al actualizar la contraseña"});
+                    }
+                });
+            });
+        });
+    }
+
+    // ===================== GESTIÓN DE GRUPOS =====================
+
+    this.inicializarGruposPredeterminados = function() {
+        let modelo = this;
+        let gruposPredeterminados = [
+            { nombre: "Desarrollo Web", descripcion: "Grupo de discusión sobre desarrollo web y tecnologías relacionadas" },
+            { nombre: "Redes", descripcion: "Grupo para temas de redes, protocolos y arquitecturas de red" },
+            { nombre: "Física", descripcion: "Grupo de estudio de física y sus aplicaciones" },
+            { nombre: "Base de Datos", descripcion: "Grupo de bases de datos, SQL, NoSQL y modelado de datos" },
+            { nombre: "Programación I", descripcion: "Grupo de introducción a la programación" },
+            { nombre: "Estructuras de Datos", descripcion: "Grupo de estudio de estructuras de datos y algoritmos" },
+            { nombre: "TFG", descripcion: "Grupo de apoyo para Trabajos Fin de Grado" },
+            { nombre: "IA y Cloud", descripcion: "Grupo de Inteligencia Artificial y Cloud Computing" },
+            { nombre: "Intensificaciones", descripcion: "Grupo general de intensificaciones de la carrera" }
+        ];
+
+        console.log("🔄 Inicializando grupos predeterminados...");
+
+        // Verificar cuáles grupos ya existen
+        this.cad.obtenerGrupos(function(gruposExistentes) {
+            let nombresExistentes = gruposExistentes.map(g => g.nombre);
+
+            let gruposACrear = gruposPredeterminados.filter(g => !nombresExistentes.includes(g.nombre));
+
+            if (gruposACrear.length === 0) {
+                console.log("✅ Todos los grupos predeterminados ya existen");
+                return;
+            }
+
+            console.log("📝 Creando " + gruposACrear.length + " grupos predeterminados...");
+
+            gruposACrear.forEach(function(grupoDef) {
+                let grupoId = "grupo_" + grupoDef.nombre.toLowerCase().replace(/\s+/g, '_');
+                let grupo = {
+                    id: grupoId,
+                    nombre: grupoDef.nombre,
+                    descripcion: grupoDef.descripcion,
+                    creador: "sistema",
+                    miembros: [],
+                    fechaCreacion: new Date(),
+                    ultimoMensaje: null
+                };
+
+                modelo.cad.insertarGrupo(grupo, function(res) {
+                    if (res && res.id !== -1) {
+                        console.log("✅ Grupo predeterminado creado: " + grupoDef.nombre);
+                    } else {
+                        console.error("❌ Error al crear grupo: " + grupoDef.nombre);
+                    }
+                });
+            });
+        });
+    }
+
+    this.crearGrupo = function(nombre, descripcion, creador, callback) {
+        let grupoId = Date.now().toString();
+        let grupo = {
+            id: grupoId,
+            nombre: nombre,
+            descripcion: descripcion,
+            creador: creador,
+            miembros: [creador],
+            fechaCreacion: new Date(),
+            ultimoMensaje: null
+        };
+
+        this.grupos[grupoId] = grupo;
+        this.cad.insertarGrupo(grupo, function(res) {
+            if (callback) callback(res);
+        });
+    }
+
+    this.obtenerGrupos = function(callback) {
+        this.cad.obtenerGrupos(function(grupos) {
+            if (callback) callback(grupos);
+        });
+    }
+
+    this.obtenerGrupo = function(grupoId, callback) {
+        this.cad.obtenerGrupo(grupoId, function(grupo) {
+            if (callback) callback(grupo);
+        });
+    }
+
+    this.unirseAGrupo = function(grupoId, emailUsuario, callback) {
+        let modelo = this;
+        this.cad.obtenerGrupo(grupoId, function(grupo) {
+            if (!grupo) {
+                console.error("❌ Grupo no encontrado:", grupoId);
+                if (callback) callback(null);
+                return;
+            }
+
+            if (!grupo.miembros.includes(emailUsuario)) {
+                grupo.miembros.push(emailUsuario);
+                console.log(`✅ Usuario ${emailUsuario} uniéndose al grupo ${grupo.nombre}`);
+                modelo.cad.actualizarGrupo(grupo, function(res) {
+                    if (res && res.id !== -1) {
+                        console.log(`✅ Usuario ${emailUsuario} se unió exitosamente al grupo ${grupo.nombre}`);
+                    }
+                    if (callback) callback(res);
+                });
+            } else {
+                console.log(`ℹ️ Usuario ${emailUsuario} ya es miembro del grupo ${grupo.nombre}`);
+                if (callback) callback(grupo);
+            }
+        });
+    }
+
+    this.salirDeGrupo = function(grupoId, emailUsuario, callback) {
+        let modelo = this;
+        this.cad.obtenerGrupo(grupoId, function(grupo) {
+            if (!grupo) {
+                console.error("❌ Grupo no encontrado:", grupoId);
+                if (callback) callback(null);
+                return;
+            }
+
+            // Verificar si el usuario es miembro
+            if (grupo.miembros.includes(emailUsuario)) {
+                // Eliminar al usuario de la lista de miembros
+                grupo.miembros = grupo.miembros.filter(m => m !== emailUsuario);
+                console.log(`✅ Usuario ${emailUsuario} abandonando el grupo ${grupo.nombre}`);
+
+                modelo.cad.actualizarGrupo(grupo, function(res) {
+                    if (res && res.id !== -1) {
+                        console.log(`✅ Usuario ${emailUsuario} abandonó exitosamente el grupo ${grupo.nombre}`);
+                    }
+                    if (callback) callback(res);
+                });
+            } else {
+                console.log(`ℹ️ Usuario ${emailUsuario} no es miembro del grupo ${grupo.nombre}`);
+                if (callback) callback(grupo);
+            }
+        });
+    }
+
+    // ===================== GESTIÓN DE MENSAJES =====================
+
+    this.enviarMensaje = function(mensaje, callback) {
+        let mensajeCompleto = {
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+            grupoId: mensaje.grupoId,
+            autor: mensaje.autor,
+            nombreAutor: mensaje.nombreAutor,
+            contenido: mensaje.contenido,
+            fecha: new Date(),
+            leido: false
+        };
+
+        let modelo = this;
+        this.cad.insertarMensaje(mensajeCompleto, function(res) {
+            // Actualizar último mensaje del grupo
+            modelo.cad.obtenerGrupo(mensaje.grupoId, function(grupo) {
+                if (grupo) {
+                    grupo.ultimoMensaje = {
+                        contenido: mensaje.contenido,
+                        autor: mensaje.nombreAutor,
+                        fecha: mensajeCompleto.fecha
+                    };
+                    modelo.cad.actualizarGrupo(grupo, function() {
+                        if (callback) callback(res);
+                    });
+                } else if (callback) {
+                    callback(res);
+                }
+            });
+        });
+    }
+
+    this.obtenerMensajes = function(grupoId, callback) {
+        this.cad.obtenerMensajes(grupoId, function(mensajes) {
+            if (callback) callback(mensajes);
+        });
+    }
+
+    this.obtenerInfoUsuarios = function(emails, callback) {
+        let modelo = this;
+        let resultado = {};
+        let procesados = 0;
+
+        if (emails.length === 0) {
+            if (callback) callback(resultado);
+            return;
+        }
+
+        emails.forEach(function(email) {
+            modelo.cad.buscarUsuario({ email: email }, function(usuario) {
+                if (usuario) {
+                    resultado[email] = {
+                        nombre: usuario.nombre || email.split('@')[0],
+                        apellidos: usuario.apellidos || '',
+                        nombreCompleto: (usuario.nombre && usuario.apellidos)
+                            ? `${usuario.nombre} ${usuario.apellidos}`
+                            : (usuario.nombre || email.split('@')[0])
+                    };
+                } else {
+                    resultado[email] = {
+                        nombre: email.split('@')[0],
+                        apellidos: '',
+                        nombreCompleto: email.split('@')[0]
+                    };
+                }
+
+                procesados++;
+                if (procesados === emails.length) {
+                    if (callback) callback(resultado);
+                }
+            });
+        });
     }
 
 }

@@ -3,6 +3,7 @@ function ControlWeb() {
     this.mostrarRegistro = function () {
         $("#fmRegistro").remove();
         $("#fmLogin").remove();
+        $("#mainContainer").addClass("auth-container-wrapper");
         $("#registro").load("./cliente/registro.html", function () {
             // Toggle password visibility
             $(document).off("click", "#togglePasswordReg").on("click", "#togglePasswordReg", function (e) {
@@ -138,6 +139,7 @@ function ControlWeb() {
     this.mostrarLogin = function () {
         $("#fmLogin").remove();
         $("#fmRegistro").remove();
+        $("#mainContainer").addClass("auth-container-wrapper");
         $("#registro").load("./cliente/login.html", function () {
             console.log("🔄 Login.html cargado, vinculando eventos...");
 
@@ -223,6 +225,11 @@ function ControlWeb() {
             $("#btnMostrarRegistro").on("click", function (e) {
                 e.preventDefault();
                 cw.mostrarRegistro();
+            });
+
+            $("#btnOlvidoPassword").on("click", function (e) {
+                e.preventDefault();
+                cw.mostrarRecuperarPassword();
             });
 
             // Prevenir doble clic en el botón de Google
@@ -547,7 +554,7 @@ function ControlWeb() {
         }
     };
 
-    this.comprobarSesion = function () {
+    this.comprobarSesion = async function () {
         // Usar la API de jquery-cookie: $.cookie('nick') para leer la cookie.
         let nick = $.cookie("nick");
 
@@ -563,36 +570,88 @@ function ControlWeb() {
         // Verificar si debe mostrar registro directamente
         let view = urlParams.get('view');
 
+        // Verificar si viene de enlace de recuperación de contraseña
+        let resetPassword = urlParams.get('resetPassword');
+        let token = urlParams.get('token');
+
         if (nick) {
-            // Obtener el nombre del usuario guardado en la cookie
-            let displayName = $.cookie("userName") || nick;
-            // Mostrar el navegador cuando hay sesión
-            $("#mainNav").show();
-            // Ocultar el contenedor principal cuando hay sesión
-            $("#mainContainer").hide();
+            console.log('🔍 Cookie de sesión encontrada, verificando con servidor...');
 
-            // Mostrar mensaje de éxito si viene de Google
-            if (googleSuccess === 'login_success') {
-                cw.mostrarMensajeExito("¡Inicio de sesión con Google exitoso! Bienvenido, " + displayName);
-                // Limpiar la URL
-                window.history.replaceState({}, document.title, window.location.pathname);
-            } else if (googleSuccess === 'success') {
-                cw.mostrarMensajeExito("¡Bienvenido! Tu cuenta ha sido creada exitosamente.");
-                window.history.replaceState({}, document.title, window.location.pathname);
-            } else {
-                cw.mostrarMensaje("Bienvenido " + displayName);
+            try {
+                // ESPERAR verificación del servidor ANTES de continuar
+                const response = await fetch('/ok', {
+                    credentials: 'include',
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+
+                if (!response.ok) {
+                    console.error('❌ Sesión no válida en servidor');
+                    // Sesión expirada, limpiar y redirigir
+                    $.removeCookie("nick", { path: '/' });
+                    $.removeCookie("userName", { path: '/' });
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.replace('/');
+                    return;
+                }
+
+                const userData = await response.json();
+                console.log('✅ Sesión válida confirmada:', userData.nick);
+
+                // Actualizar cookies con datos frescos del servidor
+                let displayName = (userData.nombre && userData.apellidos)
+                    ? `${userData.nombre} ${userData.apellidos}`
+                    : userData.nombre || userData.nick;
+                $.cookie("nick", userData.nick, { path: '/' });
+                $.cookie("userName", displayName, { path: '/' });
+
+                // Mostrar el contenedor principal para la vista de grupos
+                $("#mainContainer").show();
+                // Remover la clase auth-container-wrapper si existe
+                $("#mainContainer").removeClass("auth-container-wrapper");
+
+                // Mostrar mensaje de éxito si viene de Google
+                if (googleSuccess === 'login_success') {
+                    cw.mostrarMensajeExito("¡Inicio de sesión con Google exitoso! Bienvenido, " + displayName);
+                    // Limpiar la URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else if (googleSuccess === 'success') {
+                    cw.mostrarMensajeExito("¡Bienvenido! Tu cuenta ha sido creada exitosamente.");
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+
+                // Ocultar/limpiar el formulario si ya hay sesión
+                cw.eliminarFormulario();
+
+                console.log('📂 Cargando vista de grupos...');
+                // Mostrar la vista de grupos de chat DESPUÉS de verificar sesión
+                cw.mostrarGrupos();
+
+            } catch (error) {
+                console.error('❌ Error al verificar sesión:', error);
+                // En caso de error, limpiar y mostrar login
+                $.removeCookie("nick", { path: '/' });
+                $.removeCookie("userName", { path: '/' });
+                localStorage.clear();
+                sessionStorage.clear();
+                cw.mostrarLogin();
             }
-
-            // Ocultar/limpiar el formulario si ya hay sesión
-            cw.eliminarFormulario();
         } else if (view === 'registro') {
             // Mostrar página de REGISTRO
-            $("#mainNav").hide();
             $("#mainContainer").show();
             cw.mostrarRegistro();
+        } else if (resetPassword === 'true' && email && token) {
+            // Mostrar página de RESTABLECER contraseña
+            $("#mainContainer").show();
+            cw.mostrarRestablecerPassword(email, token);
+            // Limpiar la URL después de cargar el formulario
+            window.history.replaceState({}, document.title, window.location.pathname);
         } else {
-            // Ocultar el navegador cuando no hay sesión
-            $("#mainNav").hide();
             // Mostrar el contenedor principal para login/registro
             $("#mainContainer").show();
 
@@ -897,5 +956,220 @@ function ControlWeb() {
         }
 
         return result;
+    };
+
+    // Funciones de recuperación de contraseña
+    this.mostrarRecuperarPassword = function () {
+        $("#fmLogin").remove();
+        $("#fmRegistro").remove();
+        $("#fmRecuperarPassword").remove();
+        $("#mainContainer").addClass("auth-container-wrapper");
+        $("#registro").load("./cliente/recuperarPassword.html", function () {
+            console.log("🔄 recuperarPassword.html cargado, vinculando eventos...");
+
+            // Real-time validation
+            $("#emailRecuperar").on("blur", function() {
+                cw.validarCampoEmail($(this));
+            });
+
+            // Handler para el formulario
+            $(document).off("submit", "#formRecuperarPassword").on("submit", "#formRecuperarPassword", function (e) {
+                e.preventDefault();
+                console.log("📧 Formulario de recuperación enviado");
+
+                let email = $("#emailRecuperar").val().trim();
+
+                // Limpiar errores anteriores
+                $(".form-control").removeClass("is-invalid is-valid");
+                $(".invalid-feedback").hide();
+
+                // Validación de email
+                if (!cw.validarCampoEmail($("#emailRecuperar"))) {
+                    cw.mostrarMensajeError("Por favor, introduce un correo válido.");
+                    return;
+                }
+
+                console.log("✅ Validación exitosa, enviando petición...");
+
+                // Obtener referencia al botón
+                const btnRecuperar = $("#btnRecuperar");
+
+                // Deshabilitar botón y mostrar spinner
+                btnRecuperar.prop('disabled', true);
+                btnRecuperar.find('.btn-text').hide();
+                btnRecuperar.find('.btn-spinner').show();
+
+                // Función para restaurar el botón
+                const restaurarBoton = function() {
+                    btnRecuperar.prop('disabled', false);
+                    btnRecuperar.find('.btn-text').show();
+                    btnRecuperar.find('.btn-spinner').hide();
+                };
+
+                // Enviar datos al servidor
+                console.log("📧 Solicitando recuperación de contraseña para:", email);
+                rest.solicitarRecuperacionPassword(email, restaurarBoton);
+            });
+
+            $("#btnVolverLogin").on("click", function (e) {
+                e.preventDefault();
+                cw.mostrarLogin();
+            });
+
+            console.log("✅ Eventos de recuperación vinculados correctamente");
+        });
+    };
+
+    this.mostrarRestablecerPassword = function (email, token) {
+        $("#fmLogin").remove();
+        $("#fmRegistro").remove();
+        $("#fmRecuperarPassword").remove();
+        $("#fmRestablecerPassword").remove();
+        $("#mainContainer").addClass("auth-container-wrapper");
+        $("#registro").load("./cliente/restablecerPassword.html", function () {
+            console.log("🔄 restablecerPassword.html cargado, vinculando eventos...");
+
+            // Toggle password visibility para nueva contraseña
+            $(document).off("click", "#toggleNewPassword").on("click", "#toggleNewPassword", function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const input = $("#newPassword");
+                const isPassword = input.attr('type') === 'password';
+                input.attr('type', isPassword ? 'text' : 'password');
+                $(this).removeClass('fa-eye fa-eye-slash').addClass(isPassword ? 'fa-eye-slash' : 'fa-eye');
+                $(this).attr('title', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+            });
+
+            // Toggle password visibility para confirmar contraseña
+            $(document).off("click", "#toggleConfirmPassword").on("click", "#toggleConfirmPassword", function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const input = $("#confirmPassword");
+                const isPassword = input.attr('type') === 'password';
+                input.attr('type', isPassword ? 'text' : 'password');
+                $(this).removeClass('fa-eye fa-eye-slash').addClass(isPassword ? 'fa-eye-slash' : 'fa-eye');
+                $(this).attr('title', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+            });
+
+            // Password strength indicator
+            $("#newPassword").on("input", function() {
+                const pwd = $(this).val();
+                if (pwd.length > 0) {
+                    $("#passwordStrength").show();
+                    const strength = cw.calcularFuerzaPassword(pwd);
+                    const progressBar = $("#passwordStrength .progress-bar");
+                    const strengthText = $("#passwordStrength .strength-text");
+
+                    progressBar.css("width", strength.percentage + "%");
+                    progressBar.removeClass("bg-danger bg-warning bg-info bg-success");
+                    progressBar.addClass(strength.class);
+                    strengthText.text(strength.text);
+                    strengthText.css("color", strength.color);
+                } else {
+                    $("#passwordStrength").hide();
+                }
+            });
+
+            // Real-time validation
+            $("#newPassword").on("blur", function() {
+                cw.validarCampoPassword($(this), 8);
+            });
+
+            $("#confirmPassword").on("blur", function() {
+                const newPwd = $("#newPassword").val();
+                const confirmPwd = $(this).val();
+
+                if (confirmPwd && confirmPwd !== newPwd) {
+                    $(this).addClass("is-invalid").removeClass("is-valid");
+                    $(this).siblings(".invalid-feedback").show();
+                } else if (confirmPwd) {
+                    $(this).removeClass("is-invalid").addClass("is-valid");
+                    $(this).siblings(".invalid-feedback").hide();
+                }
+            });
+
+            // Handler para el formulario
+            $(document).off("submit", "#formRestablecerPassword").on("submit", "#formRestablecerPassword", function (e) {
+                e.preventDefault();
+                console.log("🔐 Formulario de restablecimiento enviado");
+
+                let newPassword = $("#newPassword").val();
+                let confirmPassword = $("#confirmPassword").val();
+
+                // Limpiar errores anteriores
+                $(".form-control").removeClass("is-invalid is-valid");
+                $(".invalid-feedback").hide();
+
+                let isValid = true;
+
+                // Validación de nueva contraseña
+                if (!cw.validarCampoPassword($("#newPassword"), 8)) {
+                    isValid = false;
+                }
+
+                // Validación de confirmación de contraseña
+                if (!confirmPassword || confirmPassword.length === 0) {
+                    $("#confirmPassword").addClass("is-invalid");
+                    $("#confirmPassword").siblings(".invalid-feedback").text("Debes confirmar tu contraseña").show();
+                    isValid = false;
+                } else if (newPassword !== confirmPassword) {
+                    $("#confirmPassword").addClass("is-invalid");
+                    $("#confirmPassword").siblings(".invalid-feedback").text("Las contraseñas no coinciden").show();
+                    isValid = false;
+                } else {
+                    $("#confirmPassword").removeClass("is-invalid").addClass("is-valid");
+                    $("#confirmPassword").siblings(".invalid-feedback").hide();
+                }
+
+                if (!isValid) {
+                    cw.mostrarMensajeError("Por favor, corrige los errores en el formulario.");
+                    return;
+                }
+
+                console.log("✅ Validación exitosa, enviando petición...");
+
+                // Obtener referencia al botón
+                const btnRestablecer = $("#btnRestablecer");
+
+                // Deshabilitar botón y mostrar spinner
+                btnRestablecer.prop('disabled', true);
+                btnRestablecer.find('.btn-text').hide();
+                btnRestablecer.find('.btn-spinner').show();
+
+                // Función para restaurar el botón
+                const restaurarBoton = function() {
+                    btnRestablecer.prop('disabled', false);
+                    btnRestablecer.find('.btn-text').show();
+                    btnRestablecer.find('.btn-spinner').hide();
+                };
+
+                // Enviar datos al servidor
+                console.log("🔐 Restableciendo contraseña para:", email);
+                rest.restablecerPassword(email, token, newPassword, restaurarBoton);
+            });
+
+            $("#btnVolverLogin").on("click", function (e) {
+                e.preventDefault();
+                cw.mostrarLogin();
+            });
+
+            console.log("✅ Eventos de restablecimiento vinculados correctamente");
+        });
+    };
+
+    this.mostrarGrupos = function () {
+        console.log("🔄 Cargando vista de grupos...");
+        $("#mainContainer").removeClass("auth-container-wrapper");
+        $("#registro").html("").load("./cliente/grupos.html", function () {
+            console.log("✅ Vista de grupos cargada");
+        });
+    };
+
+    this.mostrarChat = function (grupoId, grupoNombre, usuariosActivos) {
+        console.log("🔄 Cargando chat del grupo:", grupoNombre);
+        $("#mainContainer").removeClass("auth-container-wrapper");
+        $("#registro").html("").load("./cliente/chat.html", function () {
+            console.log("✅ Chat cargado para grupo:", grupoNombre);
+        });
     };
 }
