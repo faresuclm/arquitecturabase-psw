@@ -324,11 +324,29 @@ app.post("/api/grupos/:grupoId/unirse", haIniciado, function(request, response) 
     const grupoId = request.params.grupoId;
     const emailUsuario = request.user.email;
 
+    console.log(`📝 Solicitud de unión: Usuario ${emailUsuario} -> Grupo ${grupoId}`);
+
     sistema.unirseAGrupo(grupoId, emailUsuario, function(grupo) {
         if (!grupo) {
-            return response.status(404).json({ error: "Grupo no encontrado" });
+            console.error(`❌ Error: Grupo ${grupoId} no encontrado`);
+            return response.status(404).json({
+                success: false,
+                error: "Grupo no encontrado"
+            });
         }
-        response.json(grupo);
+        if (grupo.id === -1) {
+            console.error(`❌ Error al unirse al grupo ${grupoId}`);
+            return response.status(500).json({
+                success: false,
+                error: grupo.error || "Error al unirse al grupo"
+            });
+        }
+        console.log(`✅ Usuario ${emailUsuario} se unió exitosamente al grupo ${grupoId}`);
+        response.json({
+            success: true,
+            grupo: grupo,
+            mensaje: "Te has unido al grupo exitosamente"
+        });
     });
 });
 
@@ -366,6 +384,18 @@ app.get("/api/grupos/:grupoId/mensajes", haIniciado, function(request, response)
     const grupoId = request.params.grupoId;
     sistema.obtenerMensajes(grupoId, function(mensajes) {
         response.json(mensajes);
+    });
+});
+
+app.post("/api/usuarios/info", haIniciado, function(request, response) {
+    const { emails } = request.body;
+
+    if (!emails || !Array.isArray(emails)) {
+        return response.status(400).json({ error: "Se requiere un array de emails" });
+    }
+
+    sistema.obtenerInfoUsuarios(emails, function(usuarios) {
+        response.json(usuarios);
     });
 });
 

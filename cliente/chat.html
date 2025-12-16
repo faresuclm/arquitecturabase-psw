@@ -640,6 +640,9 @@
                     <button class="btn-action" id="btnUsuarios" title="Ver usuarios">
                         <i class="fas fa-users"></i>
                     </button>
+                    <button class="btn-action" id="btnAbandonarGrupo" title="Abandonar grupo" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;">
+                        <i class="fas fa-door-open"></i>
+                    </button>
                     <button class="btn-logout" id="btnCerrarSesionChat" title="Cerrar sesión">
                         <i class="fas fa-sign-out-alt"></i>
                         <span class="btn-logout-text">Cerrar Sesión</span>
@@ -984,12 +987,32 @@
             const usuariosList = document.getElementById('usuariosList');
             usuariosList.innerHTML = '';
 
+            // Obtener información de los usuarios
+            let nombresUsuarios = {};
+            try {
+                const response = await fetch('/api/usuarios/info', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ emails: grupoActual.miembros })
+                });
+
+                if (response.ok) {
+                    nombresUsuarios = await response.json();
+                }
+            } catch (error) {
+                console.error('Error al obtener nombres de usuarios:', error);
+            }
+
             for (const miembro of grupoActual.miembros) {
                 const div = document.createElement('div');
                 div.className = 'usuario-item';
                 div.dataset.email = miembro;
 
-                const iniciales = obtenerIniciales(miembro);
+                const nombreCompleto = nombresUsuarios[miembro]?.nombreCompleto || miembro.split('@')[0];
+                const iniciales = obtenerInicialesDeNombre(nombreCompleto);
                 const esTu = miembro === usuarioActual.email;
                 const isOnline = usuariosOnline.has(miembro);
 
@@ -1003,7 +1026,7 @@
                         <span class="usuario-status"></span>
                     </div>
                     <div class="usuario-info">
-                        <div class="usuario-nombre">${miembro}${esTu ? ' (tú)' : ''}</div>
+                        <div class="usuario-nombre">${nombreCompleto}${esTu ? ' (tú)' : ''}</div>
                         <div class="usuario-estado">${isOnline || esTu ? 'En línea' : 'Desconectado'}</div>
                     </div>
                 `;
@@ -1135,6 +1158,43 @@
                 const sidebar = document.getElementById('chatSidebar');
                 if (window.innerWidth <= 768) {
                     sidebar.style.display = sidebar.style.display === 'none' ? 'flex' : 'none';
+                }
+            });
+
+            // Botón abandonar grupo
+            document.getElementById('btnAbandonarGrupo').addEventListener('click', async function() {
+                if (confirm(`¿Estás seguro de que quieres abandonar el grupo "${grupoActual.nombre}"?\n\nPodrás volver a unirte cuando quieras.`)) {
+                    try {
+                        console.log(`📝 Abandonando grupo ${grupoActual.nombre}...`);
+
+                        const response = await fetch(`/api/grupos/${grupoActual.id}/salir`, {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        const data = await response.json();
+
+                        if (response.ok && data.success) {
+                            console.log(`✅ Has abandonado el grupo ${grupoActual.nombre}`);
+
+                            // Desconectar socket
+                            if (socket) {
+                                socket.emit('salirGrupo', grupoActual.id);
+                                socket.disconnect();
+                            }
+
+                            // Redirigir a lista de grupos
+                            window.location.href = '/cliente/grupos.html';
+                        } else {
+                            throw new Error(data.error || 'Error al abandonar el grupo');
+                        }
+                    } catch (error) {
+                        console.error('Error al abandonar el grupo:', error);
+                        alert('Error al abandonar el grupo: ' + error.message);
+                    }
                 }
             });
 
@@ -1387,6 +1447,10 @@
                 .join('')
                 .toUpperCase()
                 .substring(0, 2);
+        }
+
+        function obtenerInicialesDeNombre(nombre) {
+            return obtenerIniciales(nombre);
         }
 
         function generarColorAvatar(email) {

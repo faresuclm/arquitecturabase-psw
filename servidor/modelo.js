@@ -530,6 +530,42 @@ function Sistema() {
         });
     }
 
+    this.obtenerInfoUsuarios = function(emails, callback) {
+        let modelo = this;
+        let resultado = {};
+        let procesados = 0;
+
+        if (emails.length === 0) {
+            if (callback) callback(resultado);
+            return;
+        }
+
+        emails.forEach(function(email) {
+            modelo.cad.buscarUsuario({ email: email }, function(usuario) {
+                if (usuario) {
+                    resultado[email] = {
+                        nombre: usuario.nombre || email.split('@')[0],
+                        apellidos: usuario.apellidos || '',
+                        nombreCompleto: (usuario.nombre && usuario.apellidos)
+                            ? `${usuario.nombre} ${usuario.apellidos}`
+                            : (usuario.nombre || email.split('@')[0])
+                    };
+                } else {
+                    resultado[email] = {
+                        nombre: email.split('@')[0],
+                        apellidos: '',
+                        nombreCompleto: email.split('@')[0]
+                    };
+                }
+
+                procesados++;
+                if (procesados === emails.length) {
+                    if (callback) callback(resultado);
+                }
+            });
+        });
+    }
+
 }
 
 function Usuario(nick) {
