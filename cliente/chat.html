@@ -6,6 +6,8 @@
     <title>Chat - esiiChat</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
     <style>
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -192,6 +194,7 @@
             line-height: 1.5;
             color: #334155;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            word-wrap: break-word;
         }
 
         .message-welcome {
@@ -227,6 +230,20 @@
             font-size: 14px;
             color: #64748b;
             line-height: 1.6;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 8px 16px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #64748b;
+            margin: 8px 0;
+        }
+
+        .typing-indicator.active {
+            display: block;
         }
 
         .chat-input-container {
@@ -329,11 +346,6 @@
             padding: 12px;
             border-radius: 10px;
             transition: background 0.2s;
-            cursor: pointer;
-        }
-
-        .usuario-item:hover {
-            background: #f8fafc;
         }
 
         .usuario-avatar {
@@ -359,14 +371,7 @@
             height: 12px;
             border-radius: 50%;
             border: 2px solid white;
-        }
-
-        .usuario-status.online {
             background: #10b981;
-        }
-
-        .usuario-status.offline {
-            background: #94a3b8;
         }
 
         .usuario-info {
@@ -414,18 +419,15 @@
                     <i class="fas fa-arrow-left"></i>
                 </button>
                 <div class="chat-header-icon">
-                    <i class="fas fa-book"></i>
+                    <i class="fas fa-users"></i>
                 </div>
                 <div class="chat-header-info">
-                    <div class="chat-header-title" id="chatTitulo">Programación I</div>
-                    <div class="chat-header-subtitle" id="chatSubtitulo">24 usuarios activos</div>
+                    <div class="chat-header-title" id="chatTitulo">Cargando...</div>
+                    <div class="chat-header-subtitle" id="chatSubtitulo">Conectando...</div>
                 </div>
                 <div class="chat-header-actions">
                     <button class="btn-action" id="btnUsuarios" title="Ver usuarios">
                         <i class="fas fa-users"></i>
-                    </button>
-                    <button class="btn-action" title="Opciones">
-                        <i class="fas fa-ellipsis-v"></i>
                     </button>
                 </div>
             </div>
@@ -437,45 +439,16 @@
                     <div class="message-welcome-icon">
                         <i class="fas fa-comments"></i>
                     </div>
-                    <div class="message-welcome-title" id="welcomeTitle">¡Bienvenidos al grupo de Programación I!</div>
+                    <div class="message-welcome-title" id="welcomeTitle">¡Bienvenido al grupo!</div>
                     <div class="message-welcome-text">
                         Este es el comienzo de la conversación del grupo. Comparte tus dudas,
                         conocimientos y ayuda a tus compañeros.
                     </div>
                 </div>
 
-                <!-- Separador de Fecha -->
-                <div class="message-date">
-                    <span class="message-date-badge">Hoy</span>
-                </div>
-
-                <!-- Mensajes de ejemplo -->
-                <div class="message-group">
-                    <div class="message">
-                        <div class="message-avatar" style="background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);">MG</div>
-                        <div class="message-content">
-                            <div class="message-header">
-                                <span class="message-author">María González</span>
-                                <span class="message-time">23:39</span>
-                            </div>
-                            <div class="message-bubble">
-                                ¡Hola a todos! ¿Alguien entendió el último ejercicio?
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="message">
-                        <div class="message-avatar" style="background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);">CR</div>
-                        <div class="message-content">
-                            <div class="message-header">
-                                <span class="message-author">Carlos Rodríguez</span>
-                                <span class="message-time">23:54</span>
-                            </div>
-                            <div class="message-bubble">
-                                Sí, el profesor lo explicó en la última clase. ¿Cuál parte te confunde?
-                            </div>
-                        </div>
-                    </div>
+                <!-- Indicador de escritura -->
+                <div class="typing-indicator" id="typingIndicator">
+                    <i class="fas fa-circle-notch fa-spin"></i> <span id="typingText"></span>
                 </div>
             </div>
 
@@ -502,178 +475,382 @@
             <div class="sidebar-header">
                 <div class="sidebar-title">
                     <i class="fas fa-users"></i>
-                    Usuarios Activos
+                    Miembros del Grupo
                 </div>
             </div>
             <div class="usuarios-list" id="usuariosList">
-                <!-- Usuarios de ejemplo -->
-                <div class="usuario-item">
-                    <div class="usuario-avatar" style="background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);">
-                        MG
-                        <span class="usuario-status online"></span>
-                    </div>
-                    <div class="usuario-info">
-                        <div class="usuario-nombre">María González</div>
-                        <div class="usuario-estado">En línea</div>
-                    </div>
-                </div>
-
-                <div class="usuario-item">
-                    <div class="usuario-avatar" style="background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);">
-                        CR
-                        <span class="usuario-status online"></span>
-                    </div>
-                    <div class="usuario-info">
-                        <div class="usuario-nombre">Carlos Rodríguez</div>
-                        <div class="usuario-estado">En línea</div>
-                    </div>
-                </div>
-
-                <div class="usuario-item">
-                    <div class="usuario-avatar" style="background: linear-gradient(135deg, #34d399 0%, #10b981 100%);">
-                        AL
-                        <span class="usuario-status online"></span>
-                    </div>
-                    <div class="usuario-info">
-                        <div class="usuario-nombre">Ana López</div>
-                        <div class="usuario-estado">En línea</div>
-                    </div>
-                </div>
-
-                <div class="usuario-item">
-                    <div class="usuario-avatar" style="background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);">
-                        PM
-                        <span class="usuario-status offline"></span>
-                    </div>
-                    <div class="usuario-info">
-                        <div class="usuario-nombre">Pedro Martínez</div>
-                        <div class="usuario-estado">Ausente</div>
-                    </div>
-                </div>
-
-                <div class="usuario-item">
-                    <div class="usuario-avatar" style="background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);">
-                        LS
-                        <span class="usuario-status online"></span>
-                    </div>
-                    <div class="usuario-info">
-                        <div class="usuario-nombre">Laura Sánchez</div>
-                        <div class="usuario-estado">En línea</div>
-                    </div>
-                </div>
-
-                <div class="usuario-item">
-                    <div class="usuario-avatar" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
-                        J
-                        <span class="usuario-status online"></span>
-                    </div>
-                    <div class="usuario-info">
-                        <div class="usuario-nombre">juan.perez (tú)</div>
-                        <div class="usuario-estado">En línea</div>
-                    </div>
-                </div>
+                <!-- Los usuarios se cargarán dinámicamente -->
             </div>
         </div>
     </div>
 
+    <script src="/cliente/clienteRest.js"></script>
     <script>
-        // Cargar información del grupo desde sessionStorage
-        const grupoInfo = JSON.parse(sessionStorage.getItem('grupoActual') || '{}');
-        if (grupoInfo.nombre) {
-            document.getElementById('chatTitulo').textContent = grupoInfo.nombre;
-            document.getElementById('chatSubtitulo').textContent = `${grupoInfo.activos} usuarios activos`;
-            document.getElementById('welcomeTitle').textContent = `¡Bienvenidos al grupo de ${grupoInfo.nombre}!`;
+        // Variables globales
+        let socket = null;
+        let grupoActual = null;
+        let usuarioActual = null;
+        let typingTimeout = null;
+        let isTyping = false;
+
+        // Inicializar al cargar la página
+        window.addEventListener('load', function() {
+            inicializarChat();
+        });
+
+        async function inicializarChat() {
+            // Obtener información del usuario actual
+            usuarioActual = await obtenerUsuarioActual();
+            if (!usuarioActual) {
+                alert('No has iniciado sesión');
+                window.location.href = '/';
+                return;
+            }
+
+            // Obtener información del grupo
+            const grupoId = obtenerGrupoIdDeURL();
+            if (!grupoId) {
+                alert('No se ha especificado un grupo');
+                window.location.href = '/cliente/grupos.html';
+                return;
+            }
+
+            // Cargar información del grupo
+            grupoActual = await cargarGrupo(grupoId);
+            if (!grupoActual) {
+                alert('No se pudo cargar el grupo');
+                window.location.href = '/cliente/grupos.html';
+                return;
+            }
+
+            // Actualizar UI
+            actualizarHeaderGrupo();
+            cargarMiembrosGrupo();
+
+            // Inicializar Socket.IO
+            inicializarWebSocket();
+
+            // Cargar mensajes previos
+            await cargarMensajes();
+
+            // Configurar eventos
+            configurarEventos();
         }
 
-        // Botón volver
-        document.getElementById('btnVolver').addEventListener('click', function() {
-            if (typeof cw !== 'undefined' && cw.mostrarGrupos) {
-                cw.mostrarGrupos();
-            }
-        });
+        function obtenerGrupoIdDeURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
 
-        // Toggle sidebar en móvil
-        document.getElementById('btnUsuarios').addEventListener('click', function() {
-            const sidebar = document.getElementById('chatSidebar');
-            if (window.innerWidth <= 768) {
-                sidebar.style.display = sidebar.style.display === 'none' ? 'flex' : 'none';
-            }
-        });
-
-        // Auto-resize del textarea
-        const mensajeInput = document.getElementById('mensajeInput');
-        const btnEnviar = document.getElementById('btnEnviar');
-
-        mensajeInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-
-            // Habilitar/deshabilitar botón de enviar
-            btnEnviar.disabled = this.value.trim() === '';
-        });
-
-        // Enviar mensaje al presionar Enter (sin Shift)
-        mensajeInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if (this.value.trim() !== '') {
-                    enviarMensaje();
+        async function obtenerUsuarioActual() {
+            try {
+                const response = await fetch('/ok', {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return {
+                        email: data.nick,
+                        nombre: data.nombre,
+                        apellidos: data.apellidos,
+                        nombreCompleto: (data.nombre && data.apellidos)
+                            ? `${data.nombre} ${data.apellidos}`
+                            : data.nombre || data.nick
+                    };
                 }
+            } catch (error) {
+                console.error('Error al obtener usuario:', error);
             }
-        });
+            return null;
+        }
 
-        // Enviar mensaje al hacer clic en el botón
-        btnEnviar.addEventListener('click', enviarMensaje);
+        async function cargarGrupo(grupoId) {
+            try {
+                const response = await fetch(`/api/grupos/${grupoId}`, {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (error) {
+                console.error('Error al cargar grupo:', error);
+            }
+            return null;
+        }
+
+        async function cargarMensajes() {
+            try {
+                const response = await fetch(`/api/grupos/${grupoActual.id}/mensajes`, {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    const mensajes = await response.json();
+                    mensajes.forEach(mensaje => {
+                        agregarMensajeAlChat(mensaje, false);
+                    });
+                    scrollAlFinal();
+                }
+            } catch (error) {
+                console.error('Error al cargar mensajes:', error);
+            }
+        }
+
+        function actualizarHeaderGrupo() {
+            document.getElementById('chatTitulo').textContent = grupoActual.nombre;
+            document.getElementById('chatSubtitulo').textContent =
+                grupoActual.descripcion || `${grupoActual.miembros.length} miembros`;
+            document.getElementById('welcomeTitle').textContent =
+                `¡Bienvenido al grupo ${grupoActual.nombre}!`;
+        }
+
+        async function cargarMiembrosGrupo() {
+            const usuariosList = document.getElementById('usuariosList');
+            usuariosList.innerHTML = '';
+
+            for (const miembro of grupoActual.miembros) {
+                const div = document.createElement('div');
+                div.className = 'usuario-item';
+
+                const iniciales = obtenerIniciales(miembro);
+                const esTu = miembro === usuarioActual.email;
+
+                div.innerHTML = `
+                    <div class="usuario-avatar" style="background: ${generarColorAvatar(miembro)};">
+                        ${iniciales}
+                        <span class="usuario-status"></span>
+                    </div>
+                    <div class="usuario-info">
+                        <div class="usuario-nombre">${miembro}${esTu ? ' (tú)' : ''}</div>
+                        <div class="usuario-estado">En línea</div>
+                    </div>
+                `;
+
+                usuariosList.appendChild(div);
+            }
+        }
+
+        function inicializarWebSocket() {
+            // Conectar a Socket.IO
+            socket = io();
+
+            socket.on('connect', () => {
+                console.log('✅ Conectado a WebSocket');
+                document.getElementById('chatSubtitulo').textContent =
+                    grupoActual.descripcion || `${grupoActual.miembros.length} miembros`;
+
+                // Unirse a la sala del grupo
+                socket.emit('unirseGrupo', grupoActual.id);
+            });
+
+            socket.on('disconnect', () => {
+                console.log('❌ Desconectado de WebSocket');
+                document.getElementById('chatSubtitulo').textContent = 'Desconectado';
+            });
+
+            // Recibir nuevos mensajes
+            socket.on('nuevoMensaje', (mensaje) => {
+                console.log('📩 Nuevo mensaje recibido:', mensaje);
+                agregarMensajeAlChat(mensaje, true);
+            });
+
+            // Usuario escribiendo
+            socket.on('usuarioEscribiendo', (data) => {
+                if (data.grupoId === grupoActual.id) {
+                    mostrarIndicadorEscritura(data.nombreUsuario);
+                }
+            });
+
+            // Usuario dejó de escribir
+            socket.on('usuarioDejoDeEscribir', (data) => {
+                if (data.grupoId === grupoActual.id) {
+                    ocultarIndicadorEscritura();
+                }
+            });
+        }
+
+        function configurarEventos() {
+            // Botón volver
+            document.getElementById('btnVolver').addEventListener('click', function() {
+                if (socket) {
+                    socket.emit('salirGrupo', grupoActual.id);
+                    socket.disconnect();
+                }
+                window.location.href = '/cliente/grupos.html';
+            });
+
+            // Toggle sidebar en móvil
+            document.getElementById('btnUsuarios').addEventListener('click', function() {
+                const sidebar = document.getElementById('chatSidebar');
+                if (window.innerWidth <= 768) {
+                    sidebar.style.display = sidebar.style.display === 'none' ? 'flex' : 'none';
+                }
+            });
+
+            // Auto-resize del textarea
+            const mensajeInput = document.getElementById('mensajeInput');
+            const btnEnviar = document.getElementById('btnEnviar');
+
+            mensajeInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+
+                // Habilitar/deshabilitar botón de enviar
+                btnEnviar.disabled = this.value.trim() === '';
+
+                // Emitir evento de escritura
+                if (this.value.trim() !== '' && !isTyping) {
+                    isTyping = true;
+                    socket.emit('escribiendo', {
+                        grupoId: grupoActual.id,
+                        nombreUsuario: usuarioActual.nombreCompleto
+                    });
+                }
+
+                // Cancelar el timeout anterior
+                clearTimeout(typingTimeout);
+
+                // Establecer nuevo timeout
+                typingTimeout = setTimeout(() => {
+                    if (isTyping) {
+                        isTyping = false;
+                        socket.emit('dejoDeEscribir', {
+                            grupoId: grupoActual.id,
+                            nombreUsuario: usuarioActual.nombreCompleto
+                        });
+                    }
+                }, 1000);
+            });
+
+            // Enviar mensaje al presionar Enter (sin Shift)
+            mensajeInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (this.value.trim() !== '') {
+                        enviarMensaje();
+                    }
+                }
+            });
+
+            // Enviar mensaje al hacer clic en el botón
+            btnEnviar.addEventListener('click', enviarMensaje);
+        }
 
         function enviarMensaje() {
+            const mensajeInput = document.getElementById('mensajeInput');
             const mensaje = mensajeInput.value.trim();
-            if (mensaje === '') return;
+            if (mensaje === '' || !socket) return;
 
-            // Aquí se integraría con el backend para enviar el mensaje
-            console.log('Enviando mensaje:', mensaje);
+            // Crear objeto de mensaje
+            const mensajeObj = {
+                grupoId: grupoActual.id,
+                autor: usuarioActual.email,
+                nombreAutor: usuarioActual.nombreCompleto,
+                contenido: mensaje
+            };
 
-            // Agregar mensaje al chat (simulación)
-            agregarMensaje('Tú', mensaje, 'ahora', true);
+            // Enviar a través de WebSocket
+            socket.emit('enviarMensaje', mensajeObj);
 
             // Limpiar input
             mensajeInput.value = '';
             mensajeInput.style.height = 'auto';
-            btnEnviar.disabled = true;
+            document.getElementById('btnEnviar').disabled = true;
 
-            // Scroll al final
-            const chatMessages = document.getElementById('chatMessages');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            // Dejar de escribir
+            if (isTyping) {
+                isTyping = false;
+                socket.emit('dejoDeEscribir', {
+                    grupoId: grupoActual.id,
+                    nombreUsuario: usuarioActual.nombreCompleto
+                });
+            }
         }
 
-        function agregarMensaje(autor, texto, hora, esPropio = false) {
+        function agregarMensajeAlChat(mensaje, autoScroll = true) {
             const chatMessages = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message';
 
-            const iniciales = autor.split(' ').map(n => n[0]).join('').toUpperCase();
-            const avatar = esPropio ? 'J' : iniciales;
+            const esPropio = mensaje.autor === usuarioActual.email;
+            const iniciales = obtenerIniciales(mensaje.nombreAutor || mensaje.autor);
+            const hora = formatearHora(mensaje.fecha);
 
             messageDiv.innerHTML = `
-                <div class="message-avatar" style="background: linear-gradient(135deg, ${esPropio ? '#3b82f6' : '#f472b6'} 0%, ${esPropio ? '#2563eb' : '#ec4899'} 100%);">
-                    ${avatar}
+                <div class="message-avatar" style="background: ${generarColorAvatar(mensaje.autor)};">
+                    ${iniciales}
                 </div>
                 <div class="message-content">
                     <div class="message-header">
-                        <span class="message-author">${autor}</span>
+                        <span class="message-author">${esPropio ? 'Tú' : mensaje.nombreAutor}</span>
                         <span class="message-time">${hora}</span>
                     </div>
-                    <div class="message-bubble">${texto}</div>
+                    <div class="message-bubble">${escaparHTML(mensaje.contenido)}</div>
                 </div>
             `;
 
-            chatMessages.appendChild(messageDiv);
+            // Insertar antes del indicador de escritura
+            const typingIndicator = document.getElementById('typingIndicator');
+            chatMessages.insertBefore(messageDiv, typingIndicator);
+
+            if (autoScroll) {
+                scrollAlFinal();
+            }
         }
 
-        // Scroll automático al final al cargar
-        window.addEventListener('load', function() {
+        function mostrarIndicadorEscritura(nombreUsuario) {
+            const indicator = document.getElementById('typingIndicator');
+            const text = document.getElementById('typingText');
+            text.textContent = `${nombreUsuario} está escribiendo...`;
+            indicator.classList.add('active');
+            scrollAlFinal();
+        }
+
+        function ocultarIndicadorEscritura() {
+            const indicator = document.getElementById('typingIndicator');
+            indicator.classList.remove('active');
+        }
+
+        function scrollAlFinal() {
             const chatMessages = document.getElementById('chatMessages');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        });
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100);
+        }
+
+        // Funciones auxiliares
+        function obtenerIniciales(nombre) {
+            if (!nombre) return '?';
+            return nombre.split(' ')
+                .map(n => n[0])
+                .join('')
+                .toUpperCase()
+                .substring(0, 2);
+        }
+
+        function generarColorAvatar(email) {
+            const colors = [
+                'linear-gradient(135deg, #f472b6 0%, #ec4899 100%)',
+                'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
+                'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
+                'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)',
+                'linear-gradient(135deg, #fb923c 0%, #f97316 100%)',
+                'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)'
+            ];
+            const hash = email.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            return colors[hash % colors.length];
+        }
+
+        function formatearHora(fecha) {
+            if (!fecha) return '';
+            const date = new Date(fecha);
+            return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escaparHTML(texto) {
+            const div = document.createElement('div');
+            div.textContent = texto;
+            return div.innerHTML;
+        }
     </script>
 </body>
 </html>

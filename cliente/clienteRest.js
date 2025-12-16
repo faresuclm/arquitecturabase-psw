@@ -105,9 +105,6 @@ function ClienteRest() {
 
                     console.log("✅ Redirección completada");
 
-                    // Mostrar mensaje de bienvenida
-                    cw.mostrarMensaje("Bienvenido " + displayName);
-
                     // Mostrar la vista de grupos de chat
                     cw.mostrarGrupos();
 

@@ -1,5 +1,4 @@
-
-require('dotenv').config();
+const config = require("../config/config");
 const GoogleOneTapStrategy = require("passport-google-one-tap").GoogleOneTapStrategy;
 const passport = require("passport");
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
@@ -12,9 +11,9 @@ passport.deserializeUser(function (user, done) {
 });
 
 passport.use(new GoogleStrategy({
-        clientID: process.env.GCLIENT_ID,
-        clientSecret: process.env.GCLIENT_SECRET,
-        callbackURL: process.env.GCALLBACK_URL
+        clientID: config.google.clientId,
+        clientSecret: config.google.clientSecret,
+        callbackURL: config.google.callbackUrl
     },
     function (accessToken, refreshToken, profile, done) {
         return done(null, profile);
@@ -24,8 +23,8 @@ passport.use(new GoogleStrategy({
 passport.use(
     new GoogleOneTapStrategy(
         {
-            client_id: process.env.GCLIENT_ID, //prod-oneTap
-            clientSecret: process.env.GCLIENT_SECRET,
+            client_id: config.google.clientId, //prod-oneTap
+            clientSecret: config.google.clientSecret,
             verifyCsrfToken: false, // whether to validate the csrf token or not
         },
         function (profile, done) {

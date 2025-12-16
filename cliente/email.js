@@ -1,20 +1,21 @@
 const nodemailer = require('nodemailer');
-const url = process.env.URL_DEPLOYMENT;
-const appName = process.env.APP_NAME;
+const config = require('../config/config');
+const url = config.app.urlDeployment;
+const appName = config.app.name;
 //const url="tu-url-de-despliegue";
 const transporter = nodemailer.createTransport({
     host: 'smtp-relay.brevo.com',
     port: 587,
     secure: false, // true para 465, false para otros puertos
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
+        user: config.email.user,
+        pass: config.email.password,
     }
 });
 //send();
 module.exports.enviarEmail = async function (direccion, key, men) {
     const result = await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
+        from: config.email.from,
         to: direccion,
         subject: men,
         text: 'Pulsa aquí para confirmar tu cuenta',
@@ -48,7 +49,7 @@ module.exports.enviarEmail = async function (direccion, key, men) {
 
 module.exports.enviarEmailRecuperacion = async function (direccion, token) {
     const result = await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
+        from: config.email.from,
         to: direccion,
         subject: 'Recuperación de contraseña - ' + appName,
         text: 'Pulsa aquí para restablecer tu contraseña',

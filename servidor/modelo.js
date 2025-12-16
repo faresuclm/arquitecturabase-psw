@@ -6,10 +6,14 @@ const SALT_ROUNDS = 10; // Número de rondas para el salt de bcrypt
 
 function Sistema() {
     this.usuarios = {};
+    this.grupos = {};
     this.cad = new datos.CAD();
+    let sistema = this;
 
     this.cad.conectar(function (db) {
         console.log("Conectado a Mongo Atlas");
+        // Inicializar grupos predeterminados
+        sistema.inicializarGruposPredeterminados();
     });
 
     this.verificarUsuarioGoogle = function (email, callback) {
@@ -347,6 +351,157 @@ function Sistema() {
                     }
                 });
             });
+        });
+    }
+
+    // ===================== GESTIÓN DE GRUPOS =====================
+
+    this.inicializarGruposPredeterminados = function() {
+        let modelo = this;
+        let gruposPredeterminados = [
+            { nombre: "Desarrollo Web", descripcion: "Grupo de discusión sobre desarrollo web y tecnologías relacionadas" },
+            { nombre: "Redes", descripcion: "Grupo para temas de redes, protocolos y arquitecturas de red" },
+            { nombre: "Física", descripcion: "Grupo de estudio de física y sus aplicaciones" },
+            { nombre: "Base de Datos", descripcion: "Grupo de bases de datos, SQL, NoSQL y modelado de datos" },
+            { nombre: "Programación I", descripcion: "Grupo de introducción a la programación" },
+            { nombre: "Estructuras de Datos", descripcion: "Grupo de estudio de estructuras de datos y algoritmos" },
+            { nombre: "TFG", descripcion: "Grupo de apoyo para Trabajos Fin de Grado" },
+            { nombre: "IA y Cloud", descripcion: "Grupo de Inteligencia Artificial y Cloud Computing" },
+            { nombre: "Intensificaciones", descripcion: "Grupo general de intensificaciones de la carrera" }
+        ];
+
+        console.log("🔄 Inicializando grupos predeterminados...");
+
+        // Verificar cuáles grupos ya existen
+        this.cad.obtenerGrupos(function(gruposExistentes) {
+            let nombresExistentes = gruposExistentes.map(g => g.nombre);
+
+            let gruposACrear = gruposPredeterminados.filter(g => !nombresExistentes.includes(g.nombre));
+
+            if (gruposACrear.length === 0) {
+                console.log("✅ Todos los grupos predeterminados ya existen");
+                return;
+            }
+
+            console.log("📝 Creando " + gruposACrear.length + " grupos predeterminados...");
+
+            gruposACrear.forEach(function(grupoDef) {
+                let grupoId = "grupo_" + grupoDef.nombre.toLowerCase().replace(/\s+/g, '_');
+                let grupo = {
+                    id: grupoId,
+                    nombre: grupoDef.nombre,
+                    descripcion: grupoDef.descripcion,
+                    creador: "sistema",
+                    miembros: [],
+                    fechaCreacion: new Date(),
+                    ultimoMensaje: null
+                };
+
+                modelo.cad.insertarGrupo(grupo, function(res) {
+                    if (res && res.id !== -1) {
+                        console.log("✅ Grupo predeterminado creado: " + grupoDef.nombre);
+                    } else {
+                        console.error("❌ Error al crear grupo: " + grupoDef.nombre);
+                    }
+                });
+            });
+        });
+    }
+
+    this.crearGrupo = function(nombre, descripcion, creador, callback) {
+        let grupoId = Date.now().toString();
+        let grupo = {
+            id: grupoId,
+            nombre: nombre,
+            descripcion: descripcion,
+            creador: creador,
+            miembros: [creador],
+            fechaCreacion: new Date(),
+            ultimoMensaje: null
+        };
+
+        this.grupos[grupoId] = grupo;
+        this.cad.insertarGrupo(grupo, function(res) {
+            if (callback) callback(res);
+        });
+    }
+
+    this.obtenerGrupos = function(callback) {
+        this.cad.obtenerGrupos(function(grupos) {
+            if (callback) callback(grupos);
+        });
+    }
+
+    this.obtenerGrupo = function(grupoId, callback) {
+        this.cad.obtenerGrupo(grupoId, function(grupo) {
+            if (callback) callback(grupo);
+        });
+    }
+
+    this.unirseAGrupo = function(grupoId, emailUsuario, callback) {
+        let modelo = this;
+        this.cad.obtenerGrupo(grupoId, function(grupo) {
+            if (grupo && !grupo.miembros.includes(emailUsuario)) {
+                grupo.miembros.push(emailUsuario);
+                modelo.cad.actualizarGrupo(grupo, function(res) {
+                    if (callback) callback(res);
+                });
+            } else if (callback) {
+                callback(grupo);
+            }
+        });
+    }
+
+    this.salirDeGrupo = function(grupoId, emailUsuario, callback) {
+        let modelo = this;
+        this.cad.obtenerGrupo(grupoId, function(grupo) {
+            if (grupo) {
+                grupo.miembros = grupo.miembros.filter(m => m !== emailUsuario);
+                modelo.cad.actualizarGrupo(grupo, function(res) {
+                    if (callback) callback(res);
+                });
+            } else if (callback) {
+                callback(null);
+            }
+        });
+    }
+
+    // ===================== GESTIÓN DE MENSAJES =====================
+
+    this.enviarMensaje = function(mensaje, callback) {
+        let mensajeCompleto = {
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+            grupoId: mensaje.grupoId,
+            autor: mensaje.autor,
+            nombreAutor: mensaje.nombreAutor,
+            contenido: mensaje.contenido,
+            fecha: new Date(),
+            leido: false
+        };
+
+        let modelo = this;
+        this.cad.insertarMensaje(mensajeCompleto, function(res) {
+            // Actualizar último mensaje del grupo
+            modelo.cad.obtenerGrupo(mensaje.grupoId, function(grupo) {
+                if (grupo) {
+                    grupo.ultimoMensaje = {
+                        contenido: mensaje.contenido,
+                        autor: mensaje.nombreAutor,
+                        fecha: mensajeCompleto.fecha
+                    };
+                    modelo.cad.actualizarGrupo(grupo, function() {
+                        if (callback) callback(res);
+                    });
+                } else if (callback) {
+                    callback(res);
+                }
+            });
+        });
+    }
+
+    this.obtenerMensajes = function(grupoId, callback) {
+        this.cad.obtenerMensajes(grupoId, function(mensajes) {
+            if (callback) callback(mensajes);
         });
     }
 

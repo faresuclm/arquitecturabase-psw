@@ -592,8 +592,6 @@ function ControlWeb() {
             } else if (googleSuccess === 'success') {
                 cw.mostrarMensajeExito("¡Bienvenido! Tu cuenta ha sido creada exitosamente.");
                 window.history.replaceState({}, document.title, window.location.pathname);
-            } else {
-                cw.mostrarMensaje("Bienvenido " + displayName);
             }
 
             // Ocultar/limpiar el formulario si ya hay sesión

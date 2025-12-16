@@ -53,9 +53,15 @@
 
         .grupos-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 24px;
             margin-top: 30px;
+        }
+
+        @media (max-width: 1200px) {
+            .grupos-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         .grupo-card {
@@ -182,10 +188,23 @@
             line-height: 1.5;
         }
 
+        .no-grupos {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .no-grupos i {
+            font-size: 64px;
+            color: #cbd5e1;
+            margin-bottom: 16px;
+        }
+
+
         /* Responsive */
         @media (max-width: 768px) {
             .grupos-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr !important;
             }
 
             .grupos-container {
@@ -203,9 +222,9 @@
         <div class="header-section">
             <div class="chat-title">
                 <i class="fas fa-users"></i>
-                Chat Ingeniería Informática
+                EsiiChat - Grupos de Chat
             </div>
-            <div class="user-info" id="userInfo"></div>
+            <div class="user-info" id="userInfo">Cargando...</div>
             <div class="chat-subtitle">Selecciona un grupo para unirte a la conversación</div>
         </div>
 
@@ -214,119 +233,294 @@
         </div>
     </div>
 
-    <script>
-        // Datos de ejemplo de los grupos
-        const grupos = [
-            {
-                id: 1,
-                nombre: "Programación I",
-                descripcion: "Fundamentos de programación y algoritmos",
-                badge: "1er Semestre",
-                activos: 24,
-                ultimoMensaje: "¿Alguien puede explicar recursividad?",
-                tiempo: "Hace 5m"
-            },
-            {
-                id: 2,
-                nombre: "Estructuras de Datos",
-                descripcion: "Listas, árboles, grafos y más",
-                badge: "2do Semestre",
-                activos: 18,
-                ultimoMensaje: "El examen de árboles binarios es mañana",
-                tiempo: "Hace 10m"
-            },
-            {
-                id: 3,
-                nombre: "Base de Datos",
-                descripcion: "SQL, modelado y diseño de bases de datos",
-                badge: "3er Semestre",
-                activos: 32,
-                ultimoMensaje: "Compartí el diagrama ER del proyecto",
-                tiempo: "Hace 2m"
-            },
-            {
-                id: 4,
-                nombre: "Desarrollo Web",
-                descripcion: "HTML, CSS, JavaScript y frameworks modernos",
-                badge: "4to Semestre",
-                activos: 45,
-                ultimoMensaje: "React Hooks son increíbles!",
-                tiempo: "Hace 15m"
-            },
-            {
-                id: 5,
-                nombre: "Redes de Computadoras",
-                descripcion: "Protocolos, arquitecturas y seguridad",
-                badge: "5to Semestre",
-                activos: 28,
-                ultimoMensaje: "Dudas sobre el protocolo TCP/IP",
-                tiempo: "Hace 25m"
-            },
-            {
-                id: 6,
-                nombre: "Inteligencia Artificial",
-                descripcion: "Machine Learning y algoritmos inteligentes",
-                badge: "6to Semestre",
-                activos: 21,
-                ultimoMensaje: "El proyecto de ML está interesante",
-                tiempo: "Hace 1h"
-            }
-        ];
 
-        function cargarGrupos() {
+
+    <script src="/cliente/clienteRest.js"></script>
+    <script>
+        let usuarioActual = null;
+
+        // Inicializar al cargar
+        window.addEventListener('load', async function() {
+            await inicializar();
+        });
+
+        async function inicializar() {
+            console.log('🚀 Inicializando aplicación de grupos...');
+
+            // Obtener información del usuario
+            usuarioActual = await obtenerUsuarioActual();
+            if (!usuarioActual) {
+                console.error('❌ No hay sesión activa');
+                alert('No has iniciado sesión');
+                window.location.href = '/';
+                return;
+            }
+
+            console.log('✅ Usuario autenticado:', usuarioActual.email);
+
+            // Mostrar nombre de usuario
+            document.getElementById('userInfo').textContent =
+                `Bienvenido, ${usuarioActual.nombreCompleto}`;
+
+            // Cargar grupos inmediatamente
+            await cargarGrupos();
+
+            // Configurar eventos
+            configurarEventos();
+
+            // Auto-refresh de grupos cada 30 segundos para mantener la lista actualizada
+            setInterval(async () => {
+                console.log('🔄 Auto-refresh de grupos...');
+                try {
+                    const response = await fetch('/api/grupos', {
+                        credentials: 'include',
+                        cache: 'no-cache'
+                    });
+                    if (response.ok) {
+                        const grupos = await response.json();
+                        mostrarGrupos(grupos);
+                    }
+                } catch (error) {
+                    console.error('Error en auto-refresh:', error);
+                    // No mostrar error en auto-refresh para no interrumpir al usuario
+                }
+            }, 30000); // 30 segundos
+
+            console.log('✅ Aplicación inicializada correctamente');
+        }
+
+        async function obtenerUsuarioActual() {
+            try {
+                const response = await fetch('/ok', {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return {
+                        email: data.nick,
+                        nombre: data.nombre,
+                        apellidos: data.apellidos,
+                        nombreCompleto: (data.nombre && data.apellidos)
+                            ? `${data.nombre} ${data.apellidos}`
+                            : data.nombre || data.nick
+                    };
+                }
+            } catch (error) {
+                console.error('Error al obtener usuario:', error);
+            }
+            return null;
+        }
+
+        async function cargarGrupos(intentos = 3) {
+            console.log('🔄 Cargando grupos...');
+
+            // Mostrar indicador de carga
+            const grid = document.getElementById('gruposGrid');
+            grid.innerHTML = `
+                <div class="no-grupos">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <h3>Cargando grupos...</h3>
+                    <p>Espera un momento</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/grupos', {
+                    credentials: 'include',
+                    cache: 'no-cache' // Asegurar que siempre obtenga datos frescos
+                });
+
+                if (response.ok) {
+                    const grupos = await response.json();
+                    console.log('✅ Grupos cargados:', grupos.length);
+                    mostrarGrupos(grupos);
+                } else if (response.status === 401) {
+                    // No autenticado, redirigir al login
+                    console.error('❌ No autenticado');
+                    alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+                    window.location.href = '/';
+                } else {
+                    throw new Error('Error al cargar grupos: ' + response.status);
+                }
+            } catch (error) {
+                console.error('❌ Error al cargar grupos:', error);
+
+                // Reintentar si quedan intentos
+                if (intentos > 1) {
+                    console.log(`⏳ Reintentando... (${intentos - 1} intentos restantes)`);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+                    return cargarGrupos(intentos - 1);
+                }
+
+                // Si no quedan intentos, mostrar error con opción de recargar
+                mostrarMensajeErrorConRecarga('No se pudieron cargar los grupos. Verifica tu conexión.');
+            }
+        }
+
+        function mostrarGrupos(grupos) {
             const grid = document.getElementById('gruposGrid');
             grid.innerHTML = '';
 
-            grupos.forEach(grupo => {
-                const card = document.createElement('div');
-                card.className = 'grupo-card';
-                card.onclick = () => abrirGrupo(grupo.id, grupo.nombre, grupo.activos);
-
-                card.innerHTML = `
-                    <div class="grupo-header">
-                        <div class="grupo-icon">
-                            <i class="fas fa-book"></i>
-                        </div>
-                        <div class="grupo-info">
-                            <div class="grupo-nombre">${grupo.nombre}</div>
-                            <div class="grupo-descripcion">${grupo.descripcion}</div>
-                            <span class="grupo-badge">${grupo.badge}</span>
-                        </div>
-                    </div>
-                    <div class="ultimo-mensaje">${grupo.ultimoMensaje}</div>
-                    <div class="grupo-footer">
-                        <div class="grupo-stats">
-                            <i class="fas fa-user"></i>
-                            <span>${grupo.activos} activos</span>
-                        </div>
-                        <div class="grupo-time">
-                            <i class="fas fa-clock"></i>
-                            <span>${grupo.tiempo}</span>
-                        </div>
+            if (grupos.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-grupos">
+                        <i class="fas fa-hourglass-half"></i>
+                        <h3>Cargando grupos predeterminados...</h3>
+                        <p>Por favor espera un momento mientras se inicializan los grupos</p>
+                        <button onclick="cargarGrupos()" class="btn-recargar" style="margin-top: 16px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                            <i class="fas fa-sync-alt"></i> Recargar
+                        </button>
                     </div>
                 `;
+                return;
+            }
 
+            grupos.forEach(grupo => {
+                const card = crearTarjetaGrupo(grupo);
                 grid.appendChild(card);
             });
         }
 
-        function abrirGrupo(id, nombre, activos) {
-            // Guardar información del grupo en sessionStorage
-            sessionStorage.setItem('grupoActual', JSON.stringify({id, nombre, activos}));
-            // Llamar a la función del controlWeb para cargar la vista del chat
-            if (typeof cw !== 'undefined' && cw.mostrarChat) {
-                cw.mostrarChat(id, nombre, activos);
+        function crearTarjetaGrupo(grupo) {
+            const card = document.createElement('div');
+            card.className = 'grupo-card';
+            card.onclick = () => abrirGrupo(grupo.id);
+
+            const esMiembro = grupo.miembros && grupo.miembros.includes(usuarioActual.email);
+            const numMiembros = grupo.miembros ? grupo.miembros.length : 0;
+
+            let ultimoMensajeHTML = '';
+            if (grupo.ultimoMensaje) {
+                ultimoMensajeHTML = `
+                    <div class="ultimo-mensaje">
+                        <strong>${grupo.ultimoMensaje.autor}:</strong> ${grupo.ultimoMensaje.contenido}
+                    </div>
+                `;
+            }
+
+            const tiempoTranscurrido = grupo.fechaCreacion
+                ? calcularTiempoTranscurrido(grupo.fechaCreacion)
+                : '';
+
+            card.innerHTML = `
+                <div class="grupo-header">
+                    <div class="grupo-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="grupo-info">
+                        <div class="grupo-nombre">${escaparHTML(grupo.nombre)}</div>
+                        <div class="grupo-descripcion">${escaparHTML(grupo.descripcion || 'Sin descripción')}</div>
+                        ${esMiembro ? '<span class="grupo-badge">Miembro</span>' : ''}
+                    </div>
+                </div>
+                ${ultimoMensajeHTML}
+                <div class="grupo-footer">
+                    <div class="grupo-stats">
+                        <i class="fas fa-user"></i>
+                        <span>${numMiembros} miembro${numMiembros !== 1 ? 's' : ''}</span>
+                    </div>
+                    ${tiempoTranscurrido ? `
+                        <div class="grupo-time">
+                            <i class="fas fa-clock"></i>
+                            <span>${tiempoTranscurrido}</span>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            return card;
+        }
+
+        async function abrirGrupo(grupoId) {
+            try {
+                // Verificar si es miembro o unirse al grupo
+                const response = await fetch(`/api/grupos/${grupoId}`, {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const grupo = await response.json();
+
+                    // Si no es miembro, unirse primero
+                    if (!grupo.miembros.includes(usuarioActual.email)) {
+                        const joinResponse = await fetch(`/api/grupos/${grupoId}/unirse`, {
+                            method: 'POST',
+                            credentials: 'include'
+                        });
+
+                        if (!joinResponse.ok) {
+                            alert('No se pudo unir al grupo');
+                            return;
+                        }
+                    }
+
+                    // Redirigir al chat
+                    window.location.href = `/cliente/chat.html?id=${grupoId}`;
+                }
+            } catch (error) {
+                console.error('Error al abrir grupo:', error);
+                alert('Error al abrir el grupo');
             }
         }
 
-        // Cargar información del usuario
-        if (typeof $ !== 'undefined' && $.cookie) {
-            const userName = $.cookie("userName") || $.cookie("nick") || "Usuario";
-            document.getElementById('userInfo').textContent = userName;
+        function configurarEventos() {
+
+            // Botón cerrar sesión
+            document.getElementById('btnCerrarSesion').addEventListener('click', async function() {
+                if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+                    window.location.href = '/cerrarSesion';
+                }
+            });
         }
 
-        // Cargar grupos al iniciar
-        cargarGrupos();
+
+
+        function mostrarMensajeError(mensaje) {
+            const grid = document.getElementById('gruposGrid');
+            grid.innerHTML = `
+                <div class="no-grupos">
+                    <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                    <h3>Error</h3>
+                    <p>${mensaje}</p>
+                </div>
+            `;
+        }
+
+        function mostrarMensajeErrorConRecarga(mensaje) {
+            const grid = document.getElementById('gruposGrid');
+            grid.innerHTML = `
+                <div class="no-grupos">
+                    <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                    <h3>Error al cargar grupos</h3>
+                    <p>${mensaje}</p>
+                    <button onclick="cargarGrupos()" class="btn-recargar" style="margin-top: 16px; padding: 12px 24px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: auto;">
+                        <i class="fas fa-sync-alt"></i> Reintentar
+                    </button>
+                </div>
+            `;
+        }
+
+        function calcularTiempoTranscurrido(fecha) {
+            const ahora = new Date();
+            const fechaGrupo = new Date(fecha);
+            const diferencia = ahora - fechaGrupo;
+
+            const minutos = Math.floor(diferencia / 60000);
+            const horas = Math.floor(diferencia / 3600000);
+            const dias = Math.floor(diferencia / 86400000);
+
+            if (minutos < 1) return 'Ahora';
+            if (minutos < 60) return `Hace ${minutos}m`;
+            if (horas < 24) return `Hace ${horas}h`;
+            if (dias < 7) return `Hace ${dias}d`;
+            return fechaGrupo.toLocaleDateString('es-ES');
+        }
+
+        function escaparHTML(texto) {
+            const div = document.createElement('div');
+            div.textContent = texto;
+            return div.innerHTML;
+        }
     </script>
 </body>
 </html>

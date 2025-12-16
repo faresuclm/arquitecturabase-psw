@@ -1,22 +1,20 @@
+const config = require("../config/config");
+
 function CAD() {
     const mongo = require("mongodb").MongoClient;
     const ObjectId = require("mongodb").ObjectId;
     this.usuarios;
+    this.grupos;
+    this.mensajes;
 
     this.conectar = async function (callback) {
         let cad = this;
-        let client = new mongo(
-            "mongodb+srv://" +
-            process.env.MONGODB_USER +
-            ":" +
-            process.env.MONGODB_PASSWORD +
-            "@" +
-            process.env.MONGODB_URL +
-            "/?retryWrites=true&w=majority"
-        );
+        let client = new mongo(config.mongodb.getUri());
         await client.connect();
         const database = client.db("sistema");
         cad.usuarios = database.collection("usuarios");
+        cad.grupos = database.collection("grupos");
+        cad.mensajes = database.collection("mensajes");
         callback(database);
     };
 
@@ -102,6 +100,87 @@ function CAD() {
                 }
             }
         );
+    }
+
+    // ===================== MÉTODOS PARA GRUPOS =====================
+
+    this.insertarGrupo = function (grupo, callback) {
+        this.grupos.insertOne(grupo, function (err, result) {
+            if (err) {
+                console.error("❌ Error al insertar grupo:", err.message);
+                callback({id: -1, error: err.message});
+            } else {
+                console.log("✅ Grupo insertado:", grupo.nombre);
+                callback(grupo);
+            }
+        });
+    }
+
+    this.obtenerGrupos = function (callback) {
+        this.grupos.find({}).sort({fechaCreacion: -1}).toArray(function (error, grupos) {
+            if (error) {
+                console.error("Error al obtener grupos:", error);
+                callback([]);
+            } else {
+                callback(grupos || []);
+            }
+        });
+    }
+
+    this.obtenerGrupo = function (grupoId, callback) {
+        this.grupos.findOne({id: grupoId}, function (error, grupo) {
+            if (error) {
+                console.error("Error al obtener grupo:", error);
+                callback(null);
+            } else {
+                callback(grupo);
+            }
+        });
+    }
+
+    this.actualizarGrupo = function (grupo, callback) {
+        this.grupos.findOneAndUpdate(
+            {id: grupo.id},
+            {$set: grupo},
+            {upsert: false, returnDocument: "after"},
+            function (err, doc) {
+                if (err) {
+                    console.error("❌ Error al actualizar grupo:", err.message);
+                    callback({id: -1, error: err.message});
+                } else if (doc && doc.value) {
+                    console.log("✅ Grupo actualizado:", doc.value.nombre);
+                    callback(doc.value);
+                } else {
+                    console.warn("⚠️ Grupo no encontrado para actualizar");
+                    callback({id: -1, error: "Grupo no encontrado"});
+                }
+            }
+        );
+    }
+
+    // ===================== MÉTODOS PARA MENSAJES =====================
+
+    this.insertarMensaje = function (mensaje, callback) {
+        this.mensajes.insertOne(mensaje, function (err, result) {
+            if (err) {
+                console.error("❌ Error al insertar mensaje:", err.message);
+                callback({id: -1, error: err.message});
+            } else {
+                console.log("✅ Mensaje insertado en grupo:", mensaje.grupoId);
+                callback(mensaje);
+            }
+        });
+    }
+
+    this.obtenerMensajes = function (grupoId, callback) {
+        this.mensajes.find({grupoId: grupoId}).sort({fecha: 1}).toArray(function (error, mensajes) {
+            if (error) {
+                console.error("Error al obtener mensajes:", error);
+                callback([]);
+            } else {
+                callback(mensajes || []);
+            }
+        });
     }
 
 }
