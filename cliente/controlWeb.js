@@ -1,5 +1,27 @@
 function ControlWeb() {
 
+    // === NUEVA FUNCIÓN PARA ONE TAP ===
+    this.inicializarGoogleOneTap = function(clientId, callbackUri) {
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            console.log("🟢 Inicializando Google One Tap...");
+            google.accounts.id.initialize({
+                client_id: clientId,
+                login_uri: callbackUri, // POST automático al servidor al endpoint de callback
+                auto_select: false,
+                cancel_on_tap_outside: false
+            });
+
+            // Mostrar el prompt (el pop-up)
+            google.accounts.id.prompt((notification) => {
+                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    console.log("One Tap status:", notification.getNotDisplayedReason());
+                }
+            });
+        } else {
+            console.log("⚠️ Librería de Google no cargada aún.");
+        }
+    };
+
     this.mostrarRegistro = function () {
         $("#fmRegistro").remove();
         $("#fmLogin").remove();
@@ -155,25 +177,10 @@ function ControlWeb() {
                 cw.mostrarLogin();
             });
 
-            // Prevenir doble clic en el botón de Google registro
+            // Botón Google REGISTRO - Apunta a la ruta de Registro explícita
+            $("#btnGoogleRegistro").attr("href", "/auth/google/registro");
             $("#btnGoogleRegistro").on("click", function (e) {
-                if ($(this).hasClass('disabled')) {
-                    e.preventDefault();
-                    return false;
-                }
-
-                $(this).addClass('disabled');
-                $(this).find('.google-icon').hide();
-                $(this).find('.google-text').hide();
-                $(this).find('.google-spinner').show();
-
-                // Timeout de seguridad por si algo falla
-                setTimeout(() => {
-                    $(this).removeClass('disabled');
-                    $(this).find('.google-icon').show();
-                    $(this).find('.google-text').show();
-                    $(this).find('.google-spinner').hide();
-                }, 10000);
+                // Dejar que el enlace funcione normalmente
             });
 
             // Configurar handlers del modal de Google en registro
@@ -277,26 +284,16 @@ function ControlWeb() {
                 cw.mostrarRecuperarPassword();
             });
 
-            // Prevenir doble clic en el botón de Google
-            $("#btnGoogleLogin").on("click", function (e) {
-                if ($(this).hasClass('disabled')) {
-                    e.preventDefault();
-                    return false;
-                }
+            // Botón Google LOGIN - Apunta a la ruta de Login explícita
+            $("#btnGoogleLogin").attr("href", "/auth/google/login");
 
-                $(this).addClass('disabled');
-                $(this).find('.google-icon').hide();
-                $(this).find('.google-text').hide();
-                $(this).find('.google-spinner').show();
-
-                // Timeout de seguridad por si algo falla
-                setTimeout(() => {
-                    $(this).removeClass('disabled');
-                    $(this).find('.google-icon').show();
-                    $(this).find('.google-text').show();
-                    $(this).find('.google-spinner').hide();
-                }, 10000);
-            });
+            // Inicializar One Tap SOLO en el login, usando config del servidor
+            fetch('/api/config')
+                .then(response => response.json())
+                .then(config => {
+                    cw.inicializarGoogleOneTap(config.GCLIENT_ID, config.GCALLBACK_URI);
+                })
+                .catch(err => console.error("Error cargando config para OneTap:", err));
 
             // Configurar handlers del modal de Google después de que el modal esté en el DOM
             cw.configurarHandlersModalGoogle();
@@ -439,45 +436,45 @@ function ControlWeb() {
                 body: JSON.stringify({ username: username, password: password }),
                 credentials: 'same-origin'
             })
-            .then(response => {
-                console.log("📝 [REGISTRO] Respuesta recibida - Status:", response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log("✅ [REGISTRO] Datos parseados:", data);
+                .then(response => {
+                    console.log("📝 [REGISTRO] Respuesta recibida - Status:", response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("✅ [REGISTRO] Datos parseados:", data);
 
-                if (data.success) {
-                    console.log("✅ Registro Google completado exitosamente");
+                    if (data.success) {
+                        console.log("✅ Registro Google completado exitosamente");
 
-                    // Cerrar modal
-                    $("#modalPasswordGoogleRegistro").modal('hide');
+                        // Cerrar modal
+                        $("#modalPasswordGoogleRegistro").modal('hide');
 
-                    // Mostrar mensaje de éxito
-                    cw.mostrarMensajeExito("¡Registro completado! Redirigiendo al login...");
+                        // Mostrar mensaje de éxito
+                        cw.mostrarMensajeExito("¡Registro completado! Redirigiendo al login...");
 
-                    setTimeout(function() {
-                        // Redirigir a página de login
-                        window.location.href = "/?view=login&registroExitoso=true&email=" + encodeURIComponent(data.email);
-                    }, 1500);
-                } else {
-                    console.error("❌ Error al completar registro:", data.error);
-                    cw.mostrarMensajeError(data.error || "Error al completar el registro");
+                        setTimeout(function() {
+                            // MODIFICACIÓN: Redirigir a página de login
+                            window.location.href = "/?view=login&registroExitoso=true&email=" + encodeURIComponent(data.email);
+                        }, 1500);
+                    } else {
+                        console.error("❌ Error al completar registro:", data.error);
+                        cw.mostrarMensajeError(data.error || "Error al completar el registro");
+
+                        // Restaurar botón
+                        btn.prop('disabled', false);
+                        btn.find('.btn-text').show();
+                        btn.find('.btn-spinner').hide();
+                    }
+                })
+                .catch(error => {
+                    console.error("❌ Error en petición:", error);
+                    cw.mostrarMensajeError("Error al completar el registro. Por favor, intenta de nuevo.");
 
                     // Restaurar botón
                     btn.prop('disabled', false);
                     btn.find('.btn-text').show();
                     btn.find('.btn-spinner').hide();
-                }
-            })
-            .catch(error => {
-                console.error("❌ Error en petición:", error);
-                cw.mostrarMensajeError("Error al completar el registro. Por favor, intenta de nuevo.");
-
-                // Restaurar botón
-                btn.prop('disabled', false);
-                btn.find('.btn-text').show();
-                btn.find('.btn-spinner').hide();
-            });
+                });
         });
     };
 
@@ -629,49 +626,45 @@ function ControlWeb() {
                 body: JSON.stringify({ username: username, password: password }),
                 credentials: 'same-origin' // Importante para mantener la sesión
             })
-            .then(response => {
-                console.log("📝 Respuesta recibida - Status:", response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log("✅ Datos parseados:", data);
+                .then(response => {
+                    console.log("📝 Respuesta recibida - Status:", response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("✅ Datos parseados:", data);
 
-                if (data.success) {
-                    console.log("✅ Registro Google completado exitosamente");
+                    if (data.success) {
+                        console.log("✅ Registro Google completado exitosamente");
 
-                    // Establecer cookies
-                    $.cookie("nick", data.email);
-                    $.cookie("userName", data.username);
+                        // Cerrar modal
+                        $("#modalPasswordGoogle").modal('hide');
 
-                    // Cerrar modal
-                    $("#modalPasswordGoogle").modal('hide');
+                        // Mostrar mensaje de éxito
+                        cw.mostrarMensajeExito("¡Cuenta creada! Redirigiendo al login...");
 
-                    // Mostrar mensaje de éxito
-                    cw.mostrarMensajeExito("¡Registro completado! Bienvenido, " + data.username);
+                        setTimeout(function() {
+                            // MODIFICACIÓN: Redirigir a Login
+                            window.location.href = "/?view=login&registroExitoso=true&email=" + encodeURIComponent(data.email);
+                        }, 1500);
+                    } else {
+                        console.error("❌ Error al completar registro:", data.error);
+                        cw.mostrarMensajeError(data.error || "Error al completar el registro");
 
-                    setTimeout(function() {
-                        // Recargar la página para refrescar la sesión
-                        window.location.href = "/?google=success";
-                    }, 1500);
-                } else {
-                    console.error("❌ Error al completar registro:", data.error);
-                    cw.mostrarMensajeError(data.error || "Error al completar el registro");
+                        // Restaurar botón
+                        btn.prop('disabled', false);
+                        btn.find('.btn-text').show();
+                        btn.find('.btn-spinner').hide();
+                    }
+                })
+                .catch(error => {
+                    console.error("❌ Error en petición:", error);
+                    cw.mostrarMensajeError("Error al completar el registro. Por favor, intenta de nuevo.");
 
                     // Restaurar botón
                     btn.prop('disabled', false);
                     btn.find('.btn-text').show();
                     btn.find('.btn-spinner').hide();
-                }
-            })
-            .catch(error => {
-                console.error("❌ Error en petición:", error);
-                cw.mostrarMensajeError("Error al completar el registro. Por favor, intenta de nuevo.");
-
-                // Restaurar botón
-                btn.prop('disabled', false);
-                btn.find('.btn-text').show();
-                btn.find('.btn-spinner').hide();
-            });
+                });
         });
     }
 

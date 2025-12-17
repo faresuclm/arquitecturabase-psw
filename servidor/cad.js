@@ -1,8 +1,9 @@
 const config = require("../config/config");
+const { ObjectId } = require("mongodb"); // Importar ObjectId directamente
 
 function CAD() {
     const mongo = require("mongodb").MongoClient;
-    const ObjectId = require("mongodb").ObjectId;
+
     this.usuarios;
     this.grupos;
     this.mensajes;
@@ -15,6 +16,22 @@ function CAD() {
         cad.usuarios = database.collection("usuarios");
         cad.grupos = database.collection("grupos");
         cad.mensajes = database.collection("mensajes");
+
+        // === CREAR ÍNDICES ÚNICOS (Mejora de Robustez) ===
+        // Esto asegura que la base de datos rechace duplicados incluso si hay condiciones de carrera
+        try {
+            await cad.usuarios.createIndex({ email: 1 }, { unique: true });
+            // Username único, pero permitiendo que no exista (sparse) para usuarios incompletos
+            // partialFilterExpression es más moderno y flexible que sparse
+            await cad.usuarios.createIndex({ username: 1 }, {
+                unique: true,
+                partialFilterExpression: { username: { $exists: true } }
+            });
+            console.log("✅ Índices de base de datos verificados");
+        } catch (e) {
+            console.error("⚠️ Error creando índices:", e);
+        }
+
         callback(database);
     };
 
@@ -35,7 +52,7 @@ function CAD() {
                     console.error("Error al buscar/crear usuario:", err);
                     callback(null);
                 } else if (doc && doc.value) {
-                    console.log("Usuario encontrado/creado:", doc.value.email);
+                    // console.log("Usuario encontrado/creado:", doc.value.email);
                     callback(doc.value);
                 } else {
                     console.error("❌ No se pudo obtener el documento actualizado");
@@ -57,18 +74,15 @@ function CAD() {
     }
 
     this.verificarUsernameDisponible = function (username, callback) {
-        console.log("🔍 Verificando disponibilidad de username:", username);
-
         // Buscar con case-insensitive para evitar duplicados con diferentes mayúsculas
         this.usuarios.find({
             username: { $regex: new RegExp('^' + username + '$', 'i') }
         }).toArray(function(error, usuarios) {
             if (error) {
                 console.error("❌ Error al verificar username:", error);
-                callback(false); // En caso de error, decir que no está disponible por seguridad
+                callback(false);
             } else {
                 const disponible = !usuarios || usuarios.length === 0;
-                console.log("📊 Username '" + username + "' disponible:", disponible, "| Encontrados:", usuarios ? usuarios.length : 0);
                 callback(disponible);
             }
         });
@@ -108,8 +122,17 @@ function CAD() {
     }
 
     function actualizar(coleccion, obj, callback) {
+        // PROTECCIÓN DE OBJECTID: Convertir string a ObjectId si es necesario
+        let filtroId;
+        try {
+            filtroId = typeof obj._id === 'string' ? new ObjectId(obj._id) : obj._id;
+        } catch (e) {
+            console.error("ID inválido para actualización:", obj._id);
+            return callback({email: -1, error: "ID de usuario inválido"});
+        }
+
         coleccion.findOneAndUpdate(
-            {_id: ObjectId(obj._id)},
+            {_id: filtroId},
             {$set: obj},
             {upsert: false, returnDocument: "after"},
             function (err, doc) {
@@ -120,7 +143,7 @@ function CAD() {
                     console.log("✅ Usuario actualizado en BD:", doc.value.email);
                     callback(doc.value);
                 } else {
-                    console.warn("⚠️ Usuario no encontrado para actualizar");
+                    console.warn("⚠️ Usuario no encontrado para actualizar con ID:", obj._id);
                     callback({email: -1, error: "Usuario no encontrado"});
                 }
             }
@@ -135,7 +158,6 @@ function CAD() {
                 console.error("❌ Error al insertar grupo:", err.message);
                 callback({id: -1, error: err.message});
             } else {
-                console.log("✅ Grupo insertado:", grupo.nombre);
                 callback(grupo);
             }
         });
@@ -173,10 +195,8 @@ function CAD() {
                     console.error("❌ Error al actualizar grupo:", err.message);
                     callback({id: -1, error: err.message});
                 } else if (doc && doc.value) {
-                    console.log("✅ Grupo actualizado:", doc.value.nombre);
                     callback(doc.value);
                 } else {
-                    console.warn("⚠️ Grupo no encontrado para actualizar");
                     callback({id: -1, error: "Grupo no encontrado"});
                 }
             }
@@ -191,7 +211,6 @@ function CAD() {
                 console.error("❌ Error al insertar mensaje:", err.message);
                 callback({id: -1, error: err.message});
             } else {
-                console.log("✅ Mensaje insertado en grupo:", mensaje.grupoId);
                 callback(mensaje);
             }
         });
@@ -207,7 +226,6 @@ function CAD() {
             }
         });
     }
-
 }
 
 module.exports.CAD = CAD;

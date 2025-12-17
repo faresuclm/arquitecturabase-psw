@@ -1,8 +1,7 @@
 const datos = require("./cad.js");
 const correo = require("../cliente/email.js");
 const bcrypt = require("bcrypt");
-const SALT_ROUNDS = 10; // Número de rondas para el salt de bcrypt
-
+const SALT_ROUNDS = 10;
 
 function Sistema() {
     this.usuarios = {};
@@ -12,20 +11,12 @@ function Sistema() {
 
     this.cad.conectar(function (db) {
         console.log("Conectado a Mongo Atlas");
-        // Inicializar grupos predeterminados
         sistema.inicializarGruposPredeterminados();
     });
 
     this.verificarUsuarioGoogle = function (email, callback) {
-        console.log("🔍 Verificando si usuario existe:", email);
         this.cad.buscarUsuario({"email": email}, function (usr) {
-            if (usr) {
-                console.log("✅ Usuario encontrado en BD");
-                callback(usr);
-            } else {
-                console.log("⚠️ Usuario NO existe en BD");
-                callback(null);
-            }
+            callback(usr);
         });
     }
 
@@ -39,158 +30,80 @@ function Sistema() {
         this.cad.verificarUsernameDisponible(username, callback);
     }
 
-    this.usuarioGoogle = function (usr, callback) {
-        // Asegurarse de que los usuarios de Google están confirmados por defecto
-        if (!usr.confirmada) {
-            usr.confirmada = true;
-        }
-        // Marcar como usuario de Google
-        if (!usr.provider) {
-            usr.provider = 'google';
-        }
-        // Fecha de registro
-        if (!usr.fechaRegistro) {
-            usr.fechaRegistro = new Date();
-        }
-
-        this.cad.buscarOCrearUsuario(usr, function (obj) {
-            if (obj && obj.email) {
-                console.log("✅ Usuario Google autenticado/creado:", obj.email, "| Provider:", obj.provider || 'google');
-            } else {
-                console.error("❌ Error al buscar/crear usuario de Google");
-            }
-            callback(obj);
-        });
-    };
-
     this.agregarUsuario = function (nick) {
-        let res = {nick: -1};
         if (!this.usuarios[nick]) {
             this.usuarios[nick] = new Usuario(nick);
-            res.nick = nick;
-        } else {
-            console.log("el nick " + nick + " está en uso");
+            return {nick: nick};
         }
-        return res;
+        return {nick: -1};
     };
-
-    this.obtenerUsuarios = function () {
-        let res = {nick: -1};
-        if (Object.keys(this.usuarios).length > 0) {
-            res = this.usuarios;
-        } else {
-            console.log("no hay usuarios");
-        }
-        return res;
-    };
-
-    this.usuarioActivo = function (nick) {
-        let res = {nick: -1};
-        if (nick in this.usuarios) {
-            return this.usuarios[nick];
-        } else {
-            res.nick = "No existe";
-            console.log("El usuario '" + nick + "' no existe.");
-            return res;
-        }
-    };
-
     this.eliminarUsuario = function (nick) {
-        let res = {eliminado: "No se ha eliminado"};
         if (nick in this.usuarios) {
             delete this.usuarios[nick];
-            res.eliminado = "Eliminado con éxito";
+            return {eliminado: true};
         }
-        return res;
+        return {eliminado: false};
     };
 
-    this.numeroUsuarios = function () {
-        let res = {num: -1};
-        res.num = Object.keys(this.usuarios).length;
-        return res;
-    };
-
+    // ====== REGISTRO ROBUSTO ======
     this.registrarUsuario = function (obj, callback) {
         let modelo = this;
 
-        // Validaciones básicas
-        if (!obj.email || !obj.password) {
-            console.error("Error: email y contraseña son obligatorios");
-            return callback({"email": -1, "error": "Email y contraseña son obligatorios"});
+        if (!obj.email || !obj.password || !obj.username) {
+            return callback({"email": -1, "error": "Faltan datos obligatorios"});
         }
-
-        if (!obj.username) {
-            console.error("Error: nombre de usuario es obligatorio");
-            return callback({"email": -1, "error": "El nombre de usuario es obligatorio"});
-        }
-
-        // Validar formato de username
         if (!/^[a-zA-Z0-9_]{3,20}$/.test(obj.username)) {
-            console.error("Error: formato de username inválido");
-            return callback({"email": -1, "error": "El nombre de usuario debe tener entre 3 y 20 caracteres y solo puede contener letras, números y guiones bajos"});
+            return callback({"email": -1, "error": "Username inválido (3-20 carácteres alfanuméricos)"});
         }
-
         if (obj.password.length < 8) {
-            console.error("Error: contraseña muy corta");
-            return callback({"email": -1, "error": "La contraseña debe tener al menos 8 caracteres"});
+            return callback({"email": -1, "error": "Contraseña debe tener mín. 8 caracteres"});
         }
 
-        if (!obj.nick) {
-            obj.nick = obj.email;
-        }
-
-        // Primero verificar si el email ya existe
         this.cad.buscarUsuario({"email": obj.email}, function (usr) {
+            // Completar registro si viene de Google
+            if (usr && usr.provider === 'google' && !usr.password && obj.provider === 'google') {
+                console.log("🔄 Completando registro de usuario Google:", obj.email);
+
+                modelo.cad.buscarUsuarioPorUsername(obj.username, function (existingUser) {
+                    if (existingUser && existingUser.email !== obj.email) {
+                        return callback({"email": -1, "error": "El nombre de usuario ya está en uso"});
+                    }
+
+                    bcrypt.hash(obj.password, SALT_ROUNDS, function (err, hash) {
+                        if (err) return callback({"email": -1, "error": "Error de cifrado"});
+
+                        usr.password = hash;
+                        usr.username = obj.username;
+                        usr.confirmada = true;
+
+                        modelo.cad.actualizarUsuario(usr, function (res) {
+                            callback(res);
+                        });
+                    });
+                });
+                return;
+            }
+
             if (usr) {
-                console.log("El email ya existe:", obj.email);
                 return callback({"email": -1, "error": "El email ya está registrado"});
             }
 
-            // Luego verificar si el username ya existe
             modelo.cad.buscarUsuarioPorUsername(obj.username, function (usrByUsername) {
-                if (usrByUsername) {
-                    console.log("El username ya existe:", obj.username);
-                    return callback({"email": -1, "error": "El nombre de usuario ya está en uso"});
-                }
+                if (usrByUsername) return callback({"email": -1, "error": "El nombre de usuario ya está en uso"});
 
-                // Si no existe ni el email ni el username, proceder con el registro
-                // Cifrar la contraseña con bcrypt antes de guardarla
-                bcrypt.hash(obj.password, SALT_ROUNDS, function(err, hash) {
-                    if (err) {
-                        console.error("Error al cifrar la contraseña:", err);
-                        callback({"email": -1, "error": "Error al procesar la contraseña"});
-                        return;
-                    }
+                bcrypt.hash(obj.password, SALT_ROUNDS, function (err, hash) {
+                    if (err) return callback({"email": -1, "error": "Error interno"});
 
-                    // Reemplazar la contraseña en texto plano por el hash
                     obj.password = hash;
                     obj.key = Date.now().toString();
-
-                    // Solo establecer confirmada como false si no está definido (registro normal)
-                    // Si viene de Google, ya tiene confirmada: true
-                    if (obj.confirmada === undefined) {
-                        obj.confirmada = false;
-                    }
-
-                    if (!obj.fechaRegistro) {
-                        obj.fechaRegistro = new Date();
-                    }
-
-                    console.log("📝 Registrando usuario:", obj.email, "| Username:", obj.username, "| Provider:", obj.provider || 'local', "| Confirmada:", obj.confirmada);
+                    if (obj.confirmada === undefined) obj.confirmada = false;
+                    if (!obj.fechaRegistro) obj.fechaRegistro = new Date();
 
                     modelo.cad.insertarUsuario(obj, function (res) {
                         if (res && res.email) {
-                            console.log("✅ Usuario registrado exitosamente:", res.email, "| Username:", res.username);
-
-                            // Solo enviar email de verificación si NO está confirmado (registro normal, no Google)
                             if (obj.confirmada === false) {
-                                console.log("📧 Enviando email de verificación a:", obj.email);
                                 correo.enviarEmail(obj.email, obj.key, "Confirmar cuenta");
-                            } else {
-                                console.log("✅ Usuario pre-verificado (Google), no se envía email");
                             }
-                        } else {
-                            console.error("❌ Error al registrar usuario en base de datos");
                         }
                         callback(res);
                     });
@@ -199,77 +112,22 @@ function Sistema() {
         });
     }
 
-    /*
     this.loginUsuario = function (obj, callback) {
-        // Buscar usuario por email y password
-        this.cad.buscarUsuario({"email": obj.email, "password": obj.password}, function (usr) {
-            if (usr) {
-                // Usuario encontrado con credenciales correctas
-                console.log("Usuario " + usr.email + " ha iniciado sesión correctamente");
-                callback({"email": usr.email, "nombre": usr.nombre || usr.email});
-            } else {
-                // Usuario no encontrado o credenciales incorrectas
-                console.log("Credenciales incorrectas para el email: " + obj.email);
-                callback({"email": -1});
-            }
-        });
-    }*/
+        if (!obj.email || !obj.password) return callback({"email": -1, "error": "Faltan datos"});
 
-    this.loginUsuario = function (obj, callback) {
-        // Validaciones básicas
-        if (!obj.email || !obj.password) {
-            console.error("Error: email y contraseña son obligatorios");
-            return callback({"email": -1, "error": "Email y contraseña son obligatorios"});
-        }
-
-        // Primero buscar el usuario sin filtrar por confirmada
         this.cad.buscarUsuario({"email": obj.email}, function (usr) {
-            if (!usr) {
-                // Usuario no encontrado
-                console.log("Usuario no encontrado:", obj.email);
-                return callback({"email": -1, "error": "Usuario no encontrado"});
-            }
+            if (!usr) return callback({"email": -1, "error": "Usuario no encontrado"});
 
-            // Verificar si es un usuario de Google sin contraseña
             if (usr.provider === 'google' && !usr.password) {
-                console.log("Usuario de Google intentando login con contraseña:", obj.email);
-                return callback({
-                    "email": -1,
-                    "error": "Esta cuenta fue creada con Google. Por favor, inicia sesión usando el botón de Google."
-                });
+                return callback({"email": -1, "error": "Cuenta de Google. Usa el botón de Google."});
             }
-
-            // Verificar si el usuario ha confirmado su cuenta
             if (usr.confirmada === false) {
-                console.log("Usuario no ha confirmado su cuenta:", obj.email);
                 return callback({"email": -1, "confirmada": false, "error": "Cuenta no verificada"});
             }
 
-            // Verificar que el usuario tiene contraseña
-            if (!usr.password) {
-                console.error("Usuario sin contraseña:", obj.email);
-                return callback({
-                    "email": -1,
-                    "error": "Cuenta sin contraseña configurada. Contacta con el administrador."
-                });
-            }
-
-            // Usuario encontrado y confirmado, ahora comparar la contraseña
-            bcrypt.compare(obj.password, usr.password, function(err, result) {
-                if (err) {
-                    console.error("Error al comparar contraseñas:", err);
-                    return callback({"email": -1, "error": "Error al verificar contraseña"});
-                }
-
-                if (result) {
-                    // Contraseña correcta
-                    console.log("Login exitoso para:", usr.email);
-                    callback(usr);
-                } else {
-                    // Contraseña incorrecta
-                    console.log("Contraseña incorrecta para el usuario:", usr.email);
-                    callback({"email": -1, "error": "Contraseña incorrecta"});
-                }
+            bcrypt.compare(obj.password, usr.password, function (err, result) {
+                if (result) callback(usr);
+                else callback({"email": -1, "error": "Contraseña incorrecta"});
             });
         });
     }
@@ -280,7 +138,7 @@ function Sistema() {
             if (usr) {
                 usr.confirmada = true;
                 modelo.cad.actualizarUsuario(usr, function (res) {
-                    callback({"email": res.email}); //callback(res)
+                    callback({"email": res.email});
                 })
             } else {
                 callback({"email": -1});
@@ -290,299 +148,128 @@ function Sistema() {
 
     this.solicitarRecuperacionPassword = function (email, callback) {
         let modelo = this;
-
-        // Buscar el usuario por email
         this.cad.buscarUsuario({"email": email}, function (usr) {
-            if (!usr) {
-                console.log("Usuario no encontrado para recuperación:", email);
-                return callback({"success": false, "error": "No existe una cuenta con este correo"});
-            }
+            if (!usr) return callback({"success": false, "error": "Usuario no encontrado"});
+            if (usr.provider === 'google' && !usr.password) return callback({
+                "success": false,
+                "error": "Usa Google para entrar"
+            });
 
-            // Verificar que es un usuario local (no de Google sin contraseña)
-            if (usr.provider === 'google' && !usr.password) {
-                console.log("Usuario de Google sin contraseña:", email);
-                return callback({
-                    "success": false,
-                    "error": "Esta cuenta fue creada con Google. Por favor, inicia sesión con Google."
-                });
-            }
-
-            // Generar token de recuperación (timestamp + random)
-            const resetToken = Date.now().toString() + Math.random().toString(36).substring(2, 15);
-            const resetTokenExpiry = Date.now() + 3600000; // 1 hora desde ahora
-
-            // Actualizar usuario con el token
+            const resetToken = Date.now() + Math.random().toString(36).substring(2);
             usr.resetToken = resetToken;
-            usr.resetTokenExpiry = resetTokenExpiry;
+            usr.resetTokenExpiry = Date.now() + 3600000;
 
             modelo.cad.actualizarUsuario(usr, function (res) {
-                if (res && res.email) {
-                    console.log("✅ Token de recuperación generado para:", email);
-
-                    // Enviar email con el token
-                    correo.enviarEmailRecuperacion(email, resetToken);
-
-                    callback({"success": true, "email": email});
-                } else {
-                    console.error("❌ Error al actualizar usuario con token de recuperación");
-                    callback({"success": false, "error": "Error al procesar la solicitud"});
-                }
+                correo.enviarEmailRecuperacion(email, resetToken);
+                callback({"success": true});
             });
         });
     }
 
     this.restablecerPassword = function (email, token, newPassword, callback) {
         let modelo = this;
-
-        // Buscar el usuario por email y token
         this.cad.buscarUsuario({"email": email, "resetToken": token}, function (usr) {
-            if (!usr) {
-                console.log("Usuario o token no válido para restablecimiento:", email);
-                return callback({"success": false, "error": "Enlace inválido o expirado"});
-            }
+            if (!usr || Date.now() > usr.resetTokenExpiry) return callback({
+                "success": false,
+                "error": "Token inválido o expirado"
+            });
 
-            // Verificar que el token no haya expirado
-            if (!usr.resetTokenExpiry || Date.now() > usr.resetTokenExpiry) {
-                console.log("Token expirado para:", email);
-                return callback({"success": false, "error": "El enlace ha expirado. Solicita uno nuevo."});
-            }
-
-            // Validar la nueva contraseña
-            if (!newPassword || newPassword.length < 8) {
-                return callback({"success": false, "error": "La contraseña debe tener al menos 8 caracteres"});
-            }
-
-            // Cifrar la nueva contraseña
-            bcrypt.hash(newPassword, SALT_ROUNDS, function(err, hash) {
-                if (err) {
-                    console.error("Error al cifrar la nueva contraseña:", err);
-                    return callback({"success": false, "error": "Error al procesar la contraseña"});
-                }
-
-                // Actualizar la contraseña y eliminar el token
+            bcrypt.hash(newPassword, SALT_ROUNDS, function (err, hash) {
                 usr.password = hash;
                 delete usr.resetToken;
                 delete usr.resetTokenExpiry;
-
                 modelo.cad.actualizarUsuario(usr, function (res) {
-                    if (res && res.email) {
-                        console.log("✅ Contraseña restablecida exitosamente para:", email);
-                        callback({"success": true, "email": email});
-                    } else {
-                        console.error("❌ Error al actualizar contraseña");
-                        callback({"success": false, "error": "Error al actualizar la contraseña"});
-                    }
+                    callback({"success": true});
                 });
             });
         });
     }
 
-    // ===================== GESTIÓN DE GRUPOS =====================
-
-    this.inicializarGruposPredeterminados = function() {
+    // ===================== GESTIÓN DE GRUPOS (ACTUALIZADO) =====================
+    this.inicializarGruposPredeterminados = function () {
         let modelo = this;
-        let gruposPredeterminados = [
-            { nombre: "Desarrollo Web", descripcion: "Grupo de discusión sobre desarrollo web y tecnologías relacionadas" },
-            { nombre: "Redes", descripcion: "Grupo para temas de redes, protocolos y arquitecturas de red" },
-            { nombre: "Física", descripcion: "Grupo de estudio de física y sus aplicaciones" },
-            { nombre: "Base de Datos", descripcion: "Grupo de bases de datos, SQL, NoSQL y modelado de datos" },
-            { nombre: "Programación I", descripcion: "Grupo de introducción a la programación" },
-            { nombre: "Estructuras de Datos", descripcion: "Grupo de estudio de estructuras de datos y algoritmos" },
-            { nombre: "TFG", descripcion: "Grupo de apoyo para Trabajos Fin de Grado" },
-            { nombre: "IA y Cloud", descripcion: "Grupo de Inteligencia Artificial y Cloud Computing" },
-            { nombre: "Intensificaciones", descripcion: "Grupo general de intensificaciones de la carrera" }
+        // Se añaden los nuevos grupos solicitados para un total de 9
+        let gruposDef = [
+            {nombre: "Desarrollo Web", descripcion: "FullStack y Tecnologías Web"},
+            {nombre: "Sistemas", descripcion: "Sistemas Operativos y Administración"},
+            {nombre: "Cloud e IA", descripcion: "Inteligencia Artificial y Computación en la Nube"},
+            {nombre: "Redes", descripcion: "Redes de Computadores y Protocolos"},
+            {nombre: "TFG", descripcion: "Trabajo Fin de Grado"},
+            {nombre: "Bases de Datos", descripcion: "SQL, NoSQL y Diseño de Datos"},
+            {nombre: "Ingeniería del Software", descripcion: "Patrones, Metodologías y Calidad"},
+            {nombre: "Ciberseguridad", descripcion: "Seguridad Informática y Hacking Ético"},
+            {nombre: "Programación Básica", descripcion: "Algoritmia y Estructuras de Datos"}
         ];
 
-        console.log("🔄 Inicializando grupos predeterminados...");
-
-        // Verificar cuáles grupos ya existen
-        this.cad.obtenerGrupos(function(gruposExistentes) {
-            let nombresExistentes = gruposExistentes.map(g => g.nombre);
-
-            let gruposACrear = gruposPredeterminados.filter(g => !nombresExistentes.includes(g.nombre));
-
-            if (gruposACrear.length === 0) {
-                console.log("✅ Todos los grupos predeterminados ya existen");
-                return;
-            }
-
-            console.log("📝 Creando " + gruposACrear.length + " grupos predeterminados...");
-
-            gruposACrear.forEach(function(grupoDef) {
-                let grupoId = "grupo_" + grupoDef.nombre.toLowerCase().replace(/\s+/g, '_');
-                let grupo = {
-                    id: grupoId,
-                    nombre: grupoDef.nombre,
-                    descripcion: grupoDef.descripcion,
-                    creador: "sistema",
-                    miembros: [],
-                    fechaCreacion: new Date(),
-                    ultimoMensaje: null
-                };
-
-                modelo.cad.insertarGrupo(grupo, function(res) {
-                    if (res && res.id !== -1) {
-                        console.log("✅ Grupo predeterminado creado: " + grupoDef.nombre);
-                    } else {
-                        console.error("❌ Error al crear grupo: " + grupoDef.nombre);
-                    }
+        this.cad.obtenerGrupos(function (existentes) {
+            let nombres = existentes.map(g => g.nombre);
+            gruposDef.filter(g => !nombres.includes(g.nombre)).forEach(g => {
+                g.id = "grupo_" + g.nombre.replace(/\s+/g, '_').toLowerCase();
+                g.miembros = [];
+                g.fechaCreacion = new Date();
+                modelo.cad.insertarGrupo(g, () => {
                 });
             });
         });
     }
 
-    this.crearGrupo = function(nombre, descripcion, creador, callback) {
-        let grupoId = Date.now().toString();
-        let grupo = {
-            id: grupoId,
-            nombre: nombre,
-            descripcion: descripcion,
-            creador: creador,
-            miembros: [creador],
-            fechaCreacion: new Date(),
-            ultimoMensaje: null
-        };
-
-        this.grupos[grupoId] = grupo;
-        this.cad.insertarGrupo(grupo, function(res) {
-            if (callback) callback(res);
-        });
+    this.obtenerGrupos = function (cb) {
+        this.cad.obtenerGrupos(cb);
+    }
+    this.obtenerGrupo = function (id, cb) {
+        this.cad.obtenerGrupo(id, cb);
     }
 
-    this.obtenerGrupos = function(callback) {
-        this.cad.obtenerGrupos(function(grupos) {
-            if (callback) callback(grupos);
-        });
-    }
-
-    this.obtenerGrupo = function(grupoId, callback) {
-        this.cad.obtenerGrupo(grupoId, function(grupo) {
-            if (callback) callback(grupo);
-        });
-    }
-
-    this.unirseAGrupo = function(grupoId, emailUsuario, callback) {
+    this.unirseAGrupo = function (gId, email, cb) {
         let modelo = this;
-        this.cad.obtenerGrupo(grupoId, function(grupo) {
-            if (!grupo) {
-                console.error("❌ Grupo no encontrado:", grupoId);
-                if (callback) callback(null);
-                return;
-            }
-
-            if (!grupo.miembros.includes(emailUsuario)) {
-                grupo.miembros.push(emailUsuario);
-                console.log(`✅ Usuario ${emailUsuario} uniéndose al grupo ${grupo.nombre}`);
-                modelo.cad.actualizarGrupo(grupo, function(res) {
-                    if (res && res.id !== -1) {
-                        console.log(`✅ Usuario ${emailUsuario} se unió exitosamente al grupo ${grupo.nombre}`);
-                    }
-                    if (callback) callback(res);
-                });
-            } else {
-                console.log(`ℹ️ Usuario ${emailUsuario} ya es miembro del grupo ${grupo.nombre}`);
-                if (callback) callback(grupo);
-            }
+        this.cad.obtenerGrupo(gId, g => {
+            if (!g) return cb(null);
+            if (!g.miembros.includes(email)) {
+                g.miembros.push(email);
+                modelo.cad.actualizarGrupo(g, cb);
+            } else cb(g);
         });
     }
 
-    this.salirDeGrupo = function(grupoId, emailUsuario, callback) {
+    this.salirDeGrupo = function (gId, email, cb) {
         let modelo = this;
-        this.cad.obtenerGrupo(grupoId, function(grupo) {
-            if (!grupo) {
-                console.error("❌ Grupo no encontrado:", grupoId);
-                if (callback) callback(null);
-                return;
-            }
-
-            // Verificar si el usuario es miembro
-            if (grupo.miembros.includes(emailUsuario)) {
-                // Eliminar al usuario de la lista de miembros
-                grupo.miembros = grupo.miembros.filter(m => m !== emailUsuario);
-                console.log(`✅ Usuario ${emailUsuario} abandonando el grupo ${grupo.nombre}`);
-
-                modelo.cad.actualizarGrupo(grupo, function(res) {
-                    if (res && res.id !== -1) {
-                        console.log(`✅ Usuario ${emailUsuario} abandonó exitosamente el grupo ${grupo.nombre}`);
-                    }
-                    if (callback) callback(res);
-                });
-            } else {
-                console.log(`ℹ️ Usuario ${emailUsuario} no es miembro del grupo ${grupo.nombre}`);
-                if (callback) callback(grupo);
-            }
+        this.cad.obtenerGrupo(gId, g => {
+            if (!g) return cb(null);
+            if (g.miembros.includes(email)) {
+                g.miembros = g.miembros.filter(m => m !== email);
+                modelo.cad.actualizarGrupo(g, cb);
+            } else cb(g);
         });
     }
 
-    // ===================== GESTIÓN DE MENSAJES =====================
-
-    this.enviarMensaje = function(mensaje, callback) {
-        let mensajeCompleto = {
-            id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-            grupoId: mensaje.grupoId,
-            autor: mensaje.autor,
-            nombreAutor: mensaje.nombreAutor,
-            contenido: mensaje.contenido,
-            fecha: new Date(),
-            leido: false
-        };
-
+    this.enviarMensaje = function (m, cb) {
+        let msg = {...m, id: Date.now().toString(), fecha: new Date(), leido: false};
         let modelo = this;
-        this.cad.insertarMensaje(mensajeCompleto, function(res) {
-            // Actualizar último mensaje del grupo
-            modelo.cad.obtenerGrupo(mensaje.grupoId, function(grupo) {
-                if (grupo) {
-                    grupo.ultimoMensaje = {
-                        contenido: mensaje.contenido,
-                        autor: mensaje.nombreAutor,
-                        fecha: mensajeCompleto.fecha
-                    };
-                    modelo.cad.actualizarGrupo(grupo, function() {
-                        if (callback) callback(res);
-                    });
-                } else if (callback) {
-                    callback(res);
-                }
+        this.cad.insertarMensaje(msg, (res) => {
+            modelo.cad.obtenerGrupo(m.grupoId, g => {
+                if (g) {
+                    g.ultimoMensaje = {autor: m.nombreAutor, contenido: m.contenido, fecha: msg.fecha};
+                    modelo.cad.actualizarGrupo(g, () => cb(res));
+                } else cb(res);
             });
         });
     }
 
-    this.obtenerMensajes = function(grupoId, callback) {
-        this.cad.obtenerMensajes(grupoId, function(mensajes) {
-            if (callback) callback(mensajes);
-        });
+    this.obtenerMensajes = function (gId, cb) {
+        this.cad.obtenerMensajes(gId, cb);
     }
 
-    this.obtenerInfoUsuarios = function(emails, callback) {
-        let modelo = this;
-        let resultado = {};
-        let procesados = 0;
-
-        if (emails.length === 0) {
-            if (callback) callback(resultado);
-            return;
-        }
-
-        emails.forEach(function(email) {
-            modelo.cad.buscarUsuario({ email: email }, function(usuario) {
-                if (usuario) {
-                    resultado[email] = {
-                        username: usuario.username || email.split('@')[0]
-                    };
-                } else {
-                    resultado[email] = {
-                        username: email.split('@')[0]
-                    };
-                }
-
-                procesados++;
-                if (procesados === emails.length) {
-                    if (callback) callback(resultado);
-                }
+    this.obtenerInfoUsuarios = function (emails, cb) {
+        let res = {}, count = 0;
+        if (emails.length === 0) return cb({});
+        emails.forEach(email => {
+            this.cad.buscarUsuario({email}, u => {
+                res[email] = {username: u ? u.username : email.split('@')[0]};
+                count++;
+                if (count === emails.length) cb(res);
             });
         });
     }
-
 }
 
 function Usuario(nick) {
