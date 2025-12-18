@@ -1,86 +1,79 @@
 require('dotenv').config();
 
 /**
- * Configuración centralizada de variables de entorno
- * Este archivo gestiona todas las variables de entorno del proyecto
+ * Configuración centralizada.
+ * Integra validación estricta para asegurar que Secret Manager ha inyectado las variables.
  */
-
 const config = {
-    // Configuración del servidor
+    // === SERVIDOR ===
     server: {
-        port: parseInt(process.env.PORT) || 3000,
+        port: process.env.PORT || 8080,
         nodeEnv: process.env.NODE_ENV || 'development',
         isProduction: process.env.NODE_ENV === 'production',
+        // Claves de sesión. En producción DEBEN venir de Secret Manager.
+        sessionKeys: [
+            process.env.SESSION_KEY_1,
+            process.env.SESSION_KEY_2
+        ].filter(k => k) // Filtra undefined o vacíos
     },
 
-    // Configuración de MongoDB
+    // === MONGODB ===
     mongodb: {
         user: process.env.MONGODB_USER,
         password: process.env.MONGODB_PASSWORD,
-        url: process.env.MONGODB_URL,
-        // Construir la URI completa de conexión
+        url: process.env.MONGODB_URL, // Ej: arquitecturabase-psw.c1gqmp7.mongodb.net
         getUri: function() {
+            // Construcción segura de la URI usando las variables inyectadas
             return `mongodb+srv://${this.user}:${this.password}@${this.url}/?retryWrites=true&w=majority`;
         }
     },
 
-    // Configuración de Email
+    // === EMAIL (Brevo) ===
     email: {
         user: process.env.EMAIL_USER,
         password: process.env.EMAIL_PASSWORD,
         from: process.env.EMAIL_FROM,
-        verificationUrl: process.env.EMAIL_VERIFICATION_URL,
+        verificationUrl: process.env.EMAIL_VERIFICATION_URL || 'http://localhost:3000/',
     },
 
-    // Configuración de Google OAuth
+    // === GOOGLE OAUTH ===
     google: {
-        projectId: process.env.GCLOUD_PROJECT,
         clientId: process.env.GCLIENT_ID,
         clientSecret: process.env.GCLIENT_SECRET,
         callbackUrl: process.env.GCALLBACK_URL,      // ← OAuth 2.0
         callbackUri: process.env.GCALLBACK_URI,      // ← One Tap
     },
 
-    // Configuración de la aplicación
+    // === APP INFO ===
     app: {
         name: process.env.APP_NAME || 'esiiChat',
         urlDeployment: process.env.URL_DEPLOYMENT,
-        baseUrl: process.env.BASE_URL || process.env.URL_DEPLOYMENT,
-        apiUrl: process.env.API_URL || process.env.URL_DEPLOYMENT,
     },
 
-    // Validación de configuración requerida
+    // === VALIDACIÓN DE SEGURIDAD ===
     validate: function() {
-        const requiredVars = {
-            'MONGODB_USER': this.mongodb.user,
-            'MONGODB_PASSWORD': this.mongodb.password,
-            'MONGODB_URL': this.mongodb.url,
-            'EMAIL_USER': this.email.user,
-            'EMAIL_PASSWORD': this.email.password,
-            'GCLIENT_ID': this.google.clientId,
-            'GCLIENT_SECRET': this.google.clientSecret,
-        };
+        // En producción, estas variables son OBLIGATORIAS.
+        // Si falta alguna, significa que Secret Manager falló o no se configuró.
+        if (this.server.isProduction) {
+            const required = [
+                'MONGODB_PASSWORD',
+                'MONGODB_USER',
+                'EMAIL_PASSWORD',
+                'GCLIENT_SECRET',
+                'SESSION_KEY_1'
+            ];
 
-        const missing = [];
-        for (const [key, value] of Object.entries(requiredVars)) {
-            if (!value) {
-                missing.push(key);
+            const missing = required.filter(key => !process.env[key]);
+
+            if (missing.length > 0) {
+                console.error("❌ ERROR CRÍTICO: Faltan secretos de entorno:", missing);
+                throw new Error("La aplicación no puede arrancar sin los secretos requeridos.");
             }
         }
-
-        if (missing.length > 0) {
-            console.warn('⚠️  Advertencia: Faltan las siguientes variables de entorno:');
-            missing.forEach(varName => console.warn(`   - ${varName}`));
-        }
-
-        return missing.length === 0;
     }
 };
 
-// Validar configuración al cargar el módulo (solo en desarrollo)
-if (!config.server.isProduction) {
-    config.validate();
-}
+// Ejecutar validación al cargar
+config.validate();
 
 module.exports = config;
-
