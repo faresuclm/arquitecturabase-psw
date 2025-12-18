@@ -40,8 +40,8 @@ const config = {
     google: {
         clientId: process.env.GCLIENT_ID,
         clientSecret: process.env.GCLIENT_SECRET,
-        callbackUrl: process.env.GCALLBACK_URL,
-        callbackUri: process.env.GCALLBACK_URI,
+        callbackUrl: process.env.GCALLBACK_URL,      // ← OAuth 2.0
+        callbackUri: process.env.GCALLBACK_URI,      // ← One Tap
     },
 
     // === APP INFO ===
