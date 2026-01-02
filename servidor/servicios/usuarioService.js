@@ -188,21 +188,6 @@ class UsuarioService {
         return await this.usuarioRepository.obtenerInfoUsuarios(emails);
     }
 
-    /**
-     * Actualiza el Firebase UID de un usuario existente
-     * @param {string} email - Email del usuario
-     * @param {string} firebaseUid - UID de Firebase
-     * @param {string} photoURL - URL de foto de perfil
-     */
-    async actualizarFirebaseUid(email, firebaseUid, photoURL) {
-        const usuario = await this.usuarioRepository.buscarPorEmail(email);
-        if (usuario) {
-            usuario.firebaseUid = firebaseUid;
-            usuario.photoURL = photoURL;
-            await this.usuarioRepository.actualizar(usuario);
-            console.log('✅ Firebase UID actualizado para:', email);
-        }
-    }
 
     /**
      * Actualiza el nombre de usuario

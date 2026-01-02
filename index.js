@@ -18,8 +18,6 @@ const MensajeService = require("./servidor/servicios/mensajeService");
 const UsuarioController = require("./servidor/controladores/usuarioController");
 const GrupoController = require("./servidor/controladores/grupoController");
 const MensajeController = require("./servidor/controladores/mensajeController");
-const FirebaseAuthController = require("./servidor/controladores/firebaseAuthController");
-const { getFirebaseAuthService } = require("./servidor/servicios/firebaseAuthService");
 const RouterConfigurator = require("./servidor/routerConfigurator");
 const SocketHandler = require("./servidor/websocket/socketHandler");
 
@@ -69,19 +67,10 @@ const authLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-const firebaseAuthLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 10, // Máximo 10 intentos de autenticación con Firebase
-    message: { error: "Demasiados intentos de autenticación con Firebase. Por favor, intenta más tarde." },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
 app.use("/loginUsuario", authLimiter);
 app.use("/registrarUsuario", authLimiter);
 app.use("/completarRegistroGoogle", authLimiter);
 app.use("/solicitarRecuperacionPassword", authLimiter);
-app.use("/api/auth/firebase/verify", firebaseAuthLimiter);
 
 // ====== MIDDLEWARE GENERAL ======
 app.use(express.static(__dirname + "/"));
@@ -113,18 +102,6 @@ app.get("/api/config", function (request, response) {
     });
 });
 
-// Endpoint para configuración pública de Firebase (solo cliente)
-app.get("/api/firebase-config", function (request, response) {
-    response.json({
-        apiKey: config.firebase.client.apiKey,
-        authDomain: config.firebase.client.authDomain,
-        projectId: config.firebase.client.projectId,
-        storageBucket: config.firebase.client.storageBucket,
-        messagingSenderId: config.firebase.client.messagingSenderId,
-        appId: config.firebase.client.appId,
-        measurementId: config.firebase.client.measurementId
-    });
-});
 
 app.get("/", function (request, response) {
     var contenido = fs.readFileSync(__dirname + "/cliente/index.html");
@@ -158,11 +135,6 @@ async function inicializarAplicacion() {
         grupoController = new GrupoController(grupoService);
         mensajeController = new MensajeController(mensajeService);
 
-        // 4.5. Inicializar Firebase Authentication
-        console.log("🔥 Inicializando Firebase Authentication...");
-        getFirebaseAuthService();
-        const firebaseAuthController = new FirebaseAuthController(usuarioService);
-        console.log("✅ Firebase Authentication configurado");
 
         // 5. Configurar Passport con el servicio de usuario
         const sistemaAdaptado = {
@@ -200,47 +172,6 @@ async function inicializarAplicacion() {
         );
         routerConfigurator.configurar(app);
 
-        // 6.5. Configurar rutas de Firebase Authentication
-        const haIniciado = (req, res, next) => {
-            if (req.isAuthenticated()) {
-                next();
-            } else {
-                res.status(401).json({ error: "No autenticado" });
-            }
-        };
-
-        app.post("/api/auth/firebase/verify", (req, res) =>
-            firebaseAuthController.verificarYAutenticar(req, res)
-        );
-
-        app.get("/api/auth/firebase/custom-token", haIniciado, (req, res) =>
-            firebaseAuthController.obtenerCustomToken(req, res)
-        );
-
-        app.post("/api/auth/firebase/logout", (req, res) =>
-            firebaseAuthController.cerrarSesion(req, res)
-        );
-
-        // Ruta para listar usuarios de Firebase (debug/admin)
-        app.get("/api/auth/firebase/users", haIniciado, async (req, res) => {
-            try {
-                const firebaseAuth = getFirebaseAuthService();
-                const usuarios = await firebaseAuth.listarUsuarios();
-                res.json({
-                    success: true,
-                    count: usuarios.length,
-                    usuarios: usuarios
-                });
-            } catch (error) {
-                console.error('❌ Error al listar usuarios:', error);
-                res.status(500).json({
-                    success: false,
-                    error: error.message
-                });
-            }
-        });
-
-        console.log("✅ Rutas de Firebase Authentication configuradas");
 
         // 7. Configurar Socket.IO
         socketHandler = new SocketHandler(io, mensajeController);

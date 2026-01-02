@@ -10,7 +10,6 @@ class UsuarioDTO {
         this.confirmada = data.confirmada || false;
         this.provider = data.provider || 'local';
         this.fechaRegistro = data.fechaRegistro || new Date();
-        this.firebaseUid = data.firebaseUid || null; // UID de Firebase Authentication
         this.photoURL = data.photoURL || null; // URL de foto de perfil (Google)
     }
 }
@@ -72,7 +71,6 @@ class UsuarioResponseDTO {
         this.confirmada = usuario.confirmada;
         this.provider = usuario.provider;
         this.fechaRegistro = usuario.fechaRegistro;
-        this.firebaseUid = usuario.firebaseUid || null; // UID de Firebase
         this.photoURL = usuario.photoURL || null; // URL de foto
         // NO incluir password, resetToken, etc.
     }
