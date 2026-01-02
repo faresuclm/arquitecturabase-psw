@@ -1,54 +1,98 @@
-require('dotenv').config();
-
 /**
  * Configuración centralizada.
  * Integra validación estricta para asegurar que Secret Manager ha inyectado las variables.
+ *
+ * IMPORTANTE: Este módulo requiere que initializeSecretManager() se llame ANTES de usar config.
+ * En desarrollo usa dotenv (.env), en producción usa Google Cloud Secret Manager.
+ *
+ * NOTA: Usa getters para leer variables de forma lazy, permitiendo que se carguen después
+ * de que el módulo sea importado.
  */
+
 const config = {
     // === SERVIDOR ===
     server: {
-        port: process.env.PORT || 8080,
-        nodeEnv: process.env.NODE_ENV || 'development',
-        isProduction: process.env.NODE_ENV === 'production',
-        // Claves de sesión. En producción DEBEN venir de Secret Manager.
-        sessionKeys: [
-            process.env.SESSION_KEY_1,
-            process.env.SESSION_KEY_2
-        ].filter(k => k) // Filtra undefined o vacíos
+        get port() {
+            return process.env.PORT || 8080;
+        },
+        get nodeEnv() {
+            return process.env.NODE_ENV || 'development';
+        },
+        get isProduction() {
+            return process.env.NODE_ENV === 'production';
+        },
+        get sessionKeys() {
+            // Claves de sesión. En producción DEBEN venir de Secret Manager.
+            return [
+                process.env.SESSION_KEY_1,
+                process.env.SESSION_KEY_2
+            ].filter(k => k); // Filtra undefined o vacíos
+        }
     },
 
     // === MONGODB ===
     mongodb: {
-        user: process.env.MONGODB_USER,
-        password: process.env.MONGODB_PASSWORD,
-        url: process.env.MONGODB_URL, // Ej: arquitecturabase-psw.c1gqmp7.mongodb.net
+        get user() {
+            return process.env.MONGODB_USER;
+        },
+        get password() {
+            return process.env.MONGODB_PASSWORD;
+        },
+        get url() {
+            return process.env.MONGODB_URL; // Ej: arquitecturabase-psw.c1gqmp7.mongodb.net
+        },
         getUri: function() {
             // Construcción segura de la URI usando las variables inyectadas
-            return `mongodb+srv://${this.user}:${this.password}@${this.url}/?retryWrites=true&w=majority`;
+            const uri = `mongodb+srv://${this.user}:${this.password}@${this.url}/?retryWrites=true&w=majority`;
+            // Debug en desarrollo
+            if (process.env.NODE_ENV !== 'production') {
+                console.log('🔍 MongoDB URI construida (sin password):',
+                    `mongodb+srv://${this.user}:****@${this.url}/?retryWrites=true&w=majority`);
+            }
+            return uri;
         }
     },
 
     // === EMAIL (Brevo) ===
     email: {
-        user: process.env.EMAIL_USER,
-        password: process.env.EMAIL_PASSWORD,
-        from: process.env.EMAIL_FROM,
-        verificationUrl: process.env.EMAIL_VERIFICATION_URL || 'http://localhost:3000/',
+        get user() {
+            return process.env.EMAIL_USER;
+        },
+        get password() {
+            return process.env.EMAIL_PASSWORD;
+        },
+        get from() {
+            return process.env.EMAIL_FROM;
+        },
+        get verificationUrl() {
+            return process.env.EMAIL_VERIFICATION_URL || 'http://localhost:3000/';
+        }
     },
 
     // === GOOGLE OAUTH ===
     google: {
-        clientId: process.env.GCLIENT_ID,
-        clientSecret: process.env.GCLIENT_SECRET,
-        callbackUrl: process.env.GCALLBACK_URL,
-        callbackUri: process.env.GCALLBACK_URI,
+        get clientId() {
+            return process.env.GCLIENT_ID;
+        },
+        get clientSecret() {
+            return process.env.GCLIENT_SECRET;
+        },
+        get callbackUrl() {
+            return process.env.GCALLBACK_URL;
+        },
+        get callbackUri() {
+            return process.env.GCALLBACK_URI;
+        }
     },
-
 
     // === APP INFO ===
     app: {
-        name: process.env.APP_NAME || 'esiiChat',
-        urlDeployment: process.env.URL_DEPLOYMENT,
+        get name() {
+            return process.env.APP_NAME || 'esiiChat';
+        },
+        get urlDeployment() {
+            return process.env.URL_DEPLOYMENT;
+        }
     },
 
     // === VALIDACIÓN DE SEGURIDAD ===
@@ -78,3 +122,4 @@ const config = {
 config.validate();
 
 module.exports = config;
+

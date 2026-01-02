@@ -115,6 +115,75 @@ index.js                # Punto de entrada legacy
 - Express Rate Limit
 - Express Mongo Sanitize
 - Cookie Session
+- Google Cloud Secret Manager (producción)
+
+## 🔐 Google Cloud Secret Manager
+
+Este proyecto usa **Secret Manager** para gestionar secretos en producción de forma segura.
+
+### Configuración en Desarrollo
+
+En desarrollo, los secretos se cargan desde el archivo `.env`:
+
+```bash
+# Copiar y configurar
+cp .env.example .env
+```
+
+### Configuración en Producción (GCP)
+
+#### 1. Crear secretos en Google Cloud
+
+```bash
+# MongoDB
+echo -n "tu-usuario" | gcloud secrets create MONGODB_USER --data-file=-
+echo -n "tu-password" | gcloud secrets create MONGODB_PASSWORD --data-file=-
+echo -n "tu-cluster.mongodb.net" | gcloud secrets create MONGODB_URL --data-file=-
+
+# Email (Brevo)
+echo -n "tu-email" | gcloud secrets create EMAIL_USER --data-file=-
+echo -n "tu-password" | gcloud secrets create EMAIL_PASSWORD --data-file=-
+echo -n "tu-email@example.com" | gcloud secrets create EMAIL_FROM --data-file=-
+
+# Sesión (generar claves seguras con: openssl rand -hex 32)
+echo -n "clave1" | gcloud secrets create SESSION_KEY_1 --data-file=-
+echo -n "clave2" | gcloud secrets create SESSION_KEY_2 --data-file=-
+
+# Google OAuth
+echo -n "tu-client-id" | gcloud secrets create GCLIENT_ID --data-file=-
+echo -n "tu-client-secret" | gcloud secrets create GCLIENT_SECRET --data-file=-
+
+# Firebase Service Account (JSON completo)
+gcloud secrets create FIREBASE_SERVICE_ACCOUNT_JSON --data-file=firebase-service-account.json
+```
+
+#### 2. Asignar permisos IAM
+
+```bash
+# Para App Engine
+gcloud projects add-iam-policy-binding arquitecturabase-psw \
+  --member="serviceAccount:arquitecturabase-psw@appspot.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+# Para Cloud Run
+gcloud projects add-iam-policy-binding arquitecturabase-psw \
+  --member="serviceAccount:YOUR-PROJECT-NUMBER-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+#### 3. Variables de entorno requeridas
+
+El proyecto necesita `GCP_PROJECT_ID` configurado:
+- En **App Engine**: Se configura en `app.yaml`
+- En **Cloud Run**: Se pasa como variable de entorno
+- **Localmente** con gcloud: Se detecta automáticamente
+
+### Funcionamiento
+
+- **Desarrollo**: `initializeSecretManager()` carga `.env` con `dotenv`
+- **Producción**: `initializeSecretManager()` carga secretos desde Secret Manager usando la librería `@google-cloud/secret-manager`
+
+El módulo `config/secretManager.js` gestiona esta lógica de forma transparente.
 
 ## 📦 Despliegue en Google Cloud Run
 
@@ -122,8 +191,14 @@ index.js                # Punto de entrada legacy
 gcloud run deploy arquitecturabase-psw \
   --source . \
   --region=europe-west1 \
-  --env-vars-file=env.yml \
+  --set-env-vars NODE_ENV=production,GCP_PROJECT_ID=arquitecturabase-psw \
   --allow-unauthenticated
+```
+
+## 📦 Despliegue en App Engine
+
+```bash
+gcloud app deploy
 ```
 
 ## 🧪 Testing

@@ -3,6 +3,12 @@ instance_class: F1
 
 env_variables:
   NODE_ENV: 'production'
+  GCP_PROJECT_ID: 'arquitecturabase-psw'
+
+# Configuración de Secret Manager
+# Los secretos se cargan programáticamente en secretManager.js
+# Asegúrese de que el service account de App Engine tenga el rol:
+# roles/secretmanager.secretAccessor
 
 handlers:
   - url: /.*

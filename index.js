@@ -1,4 +1,7 @@
-const config = require("./config/config");
+// === INICIALIZACIÓN DE SECRET MANAGER ===
+// DEBE ser lo primero para cargar secretos antes de cualquier otra configuración
+const { initializeSecretManager } = require("./config/secretManager");
+
 const bodyParser = require("body-parser");
 const fs = require("fs");
 const express = require("express");
@@ -30,7 +33,6 @@ const http = require("http");
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
-const PORT = config.server.port;
 
 // Importar configuración de Passport
 const requirePassportSetup = require("./servidor/passport-setup");
@@ -43,6 +45,8 @@ let usuarioController;
 let grupoController;
 let mensajeController;
 let socketHandler;
+let config; // Se inicializará después de cargar secretos
+let PORT;
 
 // ====== MIDDLEWARES DE SEGURIDAD ======
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -77,42 +81,57 @@ app.use(express.static(__dirname + "/"));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// ====== CONFIGURACIÓN DE SESIÓN ======
-app.use(
-    cookieSession({
-        name: "Sistema",
-        keys: config.server.sessionKeys,
-        maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: config.server.isProduction,
-        signed: true
-    })
-);
-
-// ====== INICIALIZAR PASSPORT ======
-app.use(passport.initialize());
-app.use(passport.session());
-
-// ====== RUTAS ESTÁTICAS ======
-app.get("/api/config", function (request, response) {
-    response.json({
-        GCLIENT_ID: config.google.clientId,
-        GCALLBACK_URI: config.google.callbackUri
-    });
-});
-
-
-app.get("/", function (request, response) {
-    var contenido = fs.readFileSync(__dirname + "/cliente/index.html");
-    response.setHeader("Content-type", "text/html");
-    response.send(contenido);
-});
 
 // ====== INICIALIZACIÓN DE LA APLICACIÓN ======
 async function inicializarAplicacion() {
     try {
         console.log("🚀 Iniciando aplicación con arquitectura desacoplada...");
+
+        // 0. Inicializar Secret Manager (carga secretos desde GCP en producción)
+        await initializeSecretManager();
+        console.log("✅ Secret Manager inicializado");
+
+        // Ahora podemos cargar config de forma segura
+        config = require("./config/config");
+        PORT = config.server.port;
+
+        // Debug: Verificar que los secretos se cargaron
+        console.log("🔍 Verificando configuración:");
+        console.log("   - MongoDB URL:", config.mongodb.url ? "✅ Cargado" : "❌ Falta");
+        console.log("   - Session Keys:", config.server.sessionKeys.length, "claves");
+        console.log("   - Google Client ID:", config.google.clientId ? "✅ Cargado" : "❌ Falta");
+
+        // ====== CONFIGURACIÓN DE SESIÓN (requiere config) ======
+        app.use(
+            cookieSession({
+                name: "Sistema",
+                keys: config.server.sessionKeys,
+                maxAge: 24 * 60 * 60 * 1000,
+                sameSite: 'lax',
+                httpOnly: true,
+                secure: config.server.isProduction,
+                signed: true
+            })
+        );
+
+        // ====== INICIALIZAR PASSPORT ======
+        app.use(passport.initialize());
+        app.use(passport.session());
+
+        // ====== RUTAS ESTÁTICAS (requieren config) ======
+        app.get("/api/config", function (request, response) {
+            response.json({
+                GCLIENT_ID: config.google.clientId,
+                GCALLBACK_URI: config.google.callbackUri
+            });
+        });
+
+        app.get("/", function (request, response) {
+            var contenido = fs.readFileSync(__dirname + "/cliente/index.html");
+            response.setHeader("Content-type", "text/html");
+            response.send(contenido);
+        });
+
 
         // 1. Conectar a la base de datos e inicializar repositorios
         const dbInitializer = new DatabaseInitializer();
