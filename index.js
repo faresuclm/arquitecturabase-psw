@@ -4,12 +4,24 @@ const fs = require("fs");
 const express = require("express");
 const cookieSession = require("cookie-session");
 const passport = require("passport");
-const modelo = require("./servidor/modelo.js");
 
 // === IMPORTS DE SEGURIDAD ===
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
+
+// === IMPORTS DE ARQUITECTURA DESACOPLADA ===
+const DatabaseInitializer = require("./servidor/databaseInitializer");
+const UsuarioService = require("./servidor/servicios/usuarioService");
+const GrupoService = require("./servidor/servicios/grupoService");
+const MensajeService = require("./servidor/servicios/mensajeService");
+const UsuarioController = require("./servidor/controladores/usuarioController");
+const GrupoController = require("./servidor/controladores/grupoController");
+const MensajeController = require("./servidor/controladores/mensajeController");
+const FirebaseAuthController = require("./servidor/controladores/firebaseAuthController");
+const { getFirebaseAuthService } = require("./servidor/servicios/firebaseAuthService");
+const RouterConfigurator = require("./servidor/routerConfigurator");
+const SocketHandler = require("./servidor/websocket/socketHandler");
 
 const app = express();
 
@@ -18,17 +30,24 @@ app.set('trust proxy', 1);
 
 const http = require("http");
 const server = http.createServer(app);
-const {Server} = require("socket.io");
+const { Server } = require("socket.io");
 const io = new Server(server);
 const PORT = config.server.port;
 
 // Importar configuración de Passport
 const requirePassportSetup = require("./servidor/passport-setup");
 
-let sistema = new modelo.Sistema();
+// Variables globales para servicios y controladores
+let usuarioService;
+let grupoService;
+let mensajeService;
+let usuarioController;
+let grupoController;
+let mensajeController;
+let socketHandler;
 
 // ====== MIDDLEWARES DE SEGURIDAD ======
-app.use(helmet({contentSecurityPolicy: false}));
+app.use(helmet({ contentSecurityPolicy: false }));
 
 app.use((req, res, next) => {
     Object.defineProperty(req, 'query', {
@@ -45,7 +64,15 @@ app.use(mongoSanitize());
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 20,
-    message: {error: "Demasiados intentos, por favor intenta más tarde."},
+    message: { error: "Demasiados intentos, por favor intenta más tarde." },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const firebaseAuthLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 10, // Máximo 10 intentos de autenticación con Firebase
+    message: { error: "Demasiados intentos de autenticación con Firebase. Por favor, intenta más tarde." },
     standardHeaders: true,
     legacyHeaders: false,
 });
@@ -54,10 +81,11 @@ app.use("/loginUsuario", authLimiter);
 app.use("/registrarUsuario", authLimiter);
 app.use("/completarRegistroGoogle", authLimiter);
 app.use("/solicitarRecuperacionPassword", authLimiter);
+app.use("/api/auth/firebase/verify", firebaseAuthLimiter);
 
 // ====== MIDDLEWARE GENERAL ======
 app.use(express.static(__dirname + "/"));
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 // ====== CONFIGURACIÓN DE SESIÓN ======
@@ -77,28 +105,24 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-requirePassportSetup(passport, sistema);
-
-// ====== MIDDLEWARE DE AUTENTICACIÓN ======
-const haIniciado = function (request, response, next) {
-    if (request.isAuthenticated()) {
-        next();
-    } else {
-        response.redirect("/");
-    }
-};
-
-// ====== RUTAS GET ======
-
-app.get("/fallo", function (request, response) {
-    console.error("❌ Fallo en autenticación");
-    response.redirect("/?error=auth_failed&message=Error%20de%20autenticaci%C3%B3n");
-});
-
+// ====== RUTAS ESTÁTICAS ======
 app.get("/api/config", function (request, response) {
     response.json({
         GCLIENT_ID: config.google.clientId,
         GCALLBACK_URI: config.google.callbackUri
+    });
+});
+
+// Endpoint para configuración pública de Firebase (solo cliente)
+app.get("/api/firebase-config", function (request, response) {
+    response.json({
+        apiKey: config.firebase.client.apiKey,
+        authDomain: config.firebase.client.authDomain,
+        projectId: config.firebase.client.projectId,
+        storageBucket: config.firebase.client.storageBucket,
+        messagingSenderId: config.firebase.client.messagingSenderId,
+        appId: config.firebase.client.appId,
+        measurementId: config.firebase.client.measurementId
     });
 });
 
@@ -108,266 +132,133 @@ app.get("/", function (request, response) {
     response.send(contenido);
 });
 
-// ====== RUTAS DE GOOGLE OAUTH ======
+// ====== INICIALIZACIÓN DE LA APLICACIÓN ======
+async function inicializarAplicacion() {
+    try {
+        console.log("🚀 Iniciando aplicación con arquitectura desacoplada...");
 
-// Ruta para LOGIN con Google
-app.get("/auth/google/login",
-    function (req, res, next) {
-        req.session.googleOrigin = 'login';
-        next();
-    },
-    passport.authenticate("google", {scope: ["profile", "email"], prompt: "select_account"})
-);
+        // 1. Conectar a la base de datos e inicializar repositorios
+        const dbInitializer = new DatabaseInitializer();
+        const { usuarioRepository, grupoRepository, mensajeRepository } = await dbInitializer.conectar();
 
-// Ruta para REGISTRO con Google
-app.get("/auth/google/registro",
-    function (req, res, next) {
-        req.session.googleOrigin = 'registro';
-        next();
-    },
-    passport.authenticate("google", {scope: ["profile", "email"], prompt: "select_account"})
-);
+        // 2. Crear servicios (lógica de negocio)
+        // Crear grupoService primero
+        grupoService = new GrupoService(grupoRepository);
 
-// CALLBACK de Google OAuth
-app.get("/google/callback",
-    passport.authenticate("google", {failureRedirect: "/fallo", session: true}),
-    function (req, res) {
-        res.redirect("/good");
-    }
-);
+        // Crear usuarioService con referencia a grupoService para eliminación en cascada
+        usuarioService = new UsuarioService(usuarioRepository, grupoService);
 
-// Ruta /good (Lógica inteligente post-autenticación)
-app.get("/good", function (request, response) {
-    if (!request.user || !request.user.emails) {
-        return response.redirect("/?error=auth_failed");
-    }
+        mensajeService = new MensajeService(mensajeRepository, grupoService);
 
-    let email = request.user.emails[0].value;
-    // let origin = request.session.googleOrigin || 'login'; // Ya no es estricto, usamos lógica inteligente
+        // 3. Inicializar grupos predeterminados
+        await grupoService.inicializarGruposPredeterminados();
 
-    sistema.verificarUsuarioGoogle(email, function (existeUsuario) {
-        if (existeUsuario) {
-            // == CASO 1: EL USUARIO YA EXISTE ==
-            // Iniciar sesión automáticamente (Login directo)
-            request.logIn(existeUsuario, function (err) {
-                if (err) return response.redirect("/?error=session_error");
-                response.cookie("nick", existeUsuario.email);
-                response.cookie("userName", existeUsuario.username || email.split('@')[0]);
-                // Redirigir al home logueado
-                response.redirect("/?google=login_success");
-            });
+        // 4. Crear controladores (capa de presentación)
+        usuarioController = new UsuarioController(usuarioService);
+        grupoController = new GrupoController(grupoService);
+        mensajeController = new MensajeController(mensajeService);
 
-        } else {
-            // == CASO 2: EL USUARIO NO EXISTE ==
-            // Asumimos que quiere registrarse.
-            // Guardamos datos temporales
-            request.session.googleUserData = {
-                email: email,
-                confirmada: true,
-                provider: 'google'
-            };
+        // 4.5. Inicializar Firebase Authentication
+        console.log("🔥 Inicializando Firebase Authentication...");
+        getFirebaseAuthService();
+        const firebaseAuthController = new FirebaseAuthController(usuarioService);
+        console.log("✅ Firebase Authentication configurado");
 
-            // Redirigimos al Login pero forzamos la apertura del modal de contraseña
-            response.redirect("/?view=login&modal=google_complete_registration&email=" + encodeURIComponent(email));
-        }
-    });
-});
-
-app.get("/ok", function (request, response) {
-    if (request.isAuthenticated() && request.user) {
-        response.send({
-            nick: request.user.email,
-            username: request.user.username || request.user.email.split('@')[0]
-        });
-    } else {
-        response.status(401).send({error: "No autenticado"});
-    }
-});
-
-app.get("/confirmarUsuario/:email/:key", function (request, response) {
-    let email = request.params.email;
-    let key = request.params.key;
-    sistema.confirmarUsuario({"email": email, "key": key}, function (usr) {
-        if (usr.email != -1) {
-            response.redirect('/?verificado=true&email=' + encodeURIComponent(email));
-        } else {
-            response.redirect('/?verificado=false');
-        }
-    });
-});
-
-app.get("/restablecerPassword/:email/:token", function (request, response) {
-    let email = request.params.email;
-    let token = request.params.token;
-    response.redirect('/?resetPassword=true&email=' + encodeURIComponent(email) + '&token=' + encodeURIComponent(token));
-});
-
-// ====== RUTAS POST ======
-
-app.post("/registrarUsuario", function (request, response) {
-    const {email, password, username} = request.body;
-    sistema.registrarUsuario(request.body, function (res) {
-        if (res.email === -1) {
-            return response.status(409).send({nick: -1, error: res.error || "Error al registrar"});
-        }
-        response.send({"nick": res.email});
-    });
-});
-
-app.post('/loginUsuario', function (request, response, next) {
-    const {email, password} = request.body;
-    if (!email || !password) return response.status(400).send({nick: -1, error: "Faltan datos"});
-
-    passport.authenticate('local', function (err, user, info) {
-        if (err) return response.status(500).send({nick: -1, error: "Error de servidor"});
-        if (!user) return response.status(401).send({nick: -1, error: info ? info.message : "Credenciales inválidas"});
-
-        request.logIn(user, function (err) {
-            if (err) return response.status(500).send({nick: -1, error: "Error de sesión"});
-            return response.send({"nick": user.email, "username": user.username});
-        });
-    })(request, response, next);
-});
-
-app.post("/cerrarSesion", function (request, response) {
-    if (!request.user) return response.json({success: true, mensaje: "No había sesión"});
-
-    let email = request.user.email;
-    request.logout(function (err) {
-        if (err) return response.status(500).json({success: false, error: "Fallo al logout"});
-
-        response.clearCookie('connect.sid');
-        response.clearCookie('Sistema');
-        try {
-            sistema.eliminarUsuario(email);
-        } catch (e) {
-        }
-
-        request.session = null;
-        response.json({success: true, mensaje: "Sesión cerrada"});
-    });
-});
-
-app.post("/completarRegistroGoogle", function (request, response) {
-    const {password, username} = request.body;
-    if (!request.session.googleUserData) return response.status(400).send({
-        success: false,
-        error: "Sin datos de Google"
-    });
-
-    const googleData = request.session.googleUserData;
-    const nuevoUsuario = {
-        email: googleData.email,
-        password: password,
-        username: username,
-        confirmada: true,
-        provider: 'google',
-        fechaRegistro: new Date()
-    };
-
-    sistema.registrarUsuario(nuevoUsuario, function (res) {
-        if (res.email === -1) return response.status(500).send({success: false, error: res.error});
-
-        delete request.session.googleUserData;
-
-        request.logIn(nuevoUsuario, function (err) {
-            response.json({success: true, email: res.email, username: username});
-        });
-    });
-});
-
-app.post("/solicitarRecuperacionPassword", function (request, response) {
-    const {email} = request.body;
-    if (!email) return response.status(400).send({success: false});
-    sistema.solicitarRecuperacionPassword(email, function (res) {
-        if (!res.success) return response.status(404).send(res);
-        response.send(res);
-    });
-});
-
-app.post("/restablecerPassword", function (request, response) {
-    const {email, token, newPassword} = request.body;
-    sistema.restablecerPassword(email, token, newPassword, function (res) {
-        if (!res.success) return response.status(400).send(res);
-        response.send(res);
-    });
-});
-
-// ====== RUTAS DE GRUPOS Y API ======
-app.get("/api/grupos", haIniciado, (req, res) => sistema.obtenerGrupos(grupos => res.json(grupos)));
-app.get("/api/grupos/:grupoId", haIniciado, (req, res) => sistema.obtenerGrupo(req.params.grupoId, g => g ? res.json(g) : res.status(404).json({error: "404"})));
-app.post("/api/grupos/:grupoId/unirse", haIniciado, (req, res) => sistema.unirseAGrupo(req.params.grupoId, req.user.email, g => res.json({
-    success: !!g,
-    grupo: g
-})));
-app.post("/api/grupos/:grupoId/salir", haIniciado, (req, res) => sistema.salirDeGrupo(req.params.grupoId, req.user.email, g => res.json({
-    success: !!g,
-    grupo: g
-})));
-app.get("/api/grupos/:grupoId/mensajes", haIniciado, (req, res) => sistema.obtenerMensajes(req.params.grupoId, m => res.json(m)));
-app.post("/api/usuarios/info", haIniciado, (req, res) => sistema.obtenerInfoUsuarios(req.body.emails || [], u => res.json(u)));
-app.get("/verificarUsername/:username", function (req, res) {
-    const username = req.params.username;
-    sistema.verificarUsernameDisponible(username, function (disponible) {
-        res.json({disponible: disponible});
-    });
-});
-
-// ====== SOCKET.IO ======
-const usuariosOnlinePorGrupo = {};
-
-io.on('connection', (socket) => {
-    socket.on('unirseGrupo', (data) => {
-        const grupoId = data.grupoId || data;
-        const usuarioEmail = data.usuarioEmail;
-        const usuarioUsername = data.usuarioUsername;
-
-        socket.join(grupoId);
-        socket.grupoId = grupoId;
-        socket.usuarioEmail = usuarioEmail;
-        socket.usuarioUsername = usuarioUsername;
-
-        if (!usuariosOnlinePorGrupo[grupoId]) usuariosOnlinePorGrupo[grupoId] = {};
-
-        for (const sId in usuariosOnlinePorGrupo[grupoId]) {
-            if (usuariosOnlinePorGrupo[grupoId][sId].email === usuarioEmail && sId !== socket.id) {
-                delete usuariosOnlinePorGrupo[grupoId][sId];
+        // 5. Configurar Passport con el servicio de usuario
+        const sistemaAdaptado = {
+            buscarUsuarioPorEmail: async (email, callback) => {
+                try {
+                    const usuario = await usuarioService.buscarPorEmail(email);
+                    callback(usuario);
+                } catch (error) {
+                    callback(null);
+                }
+            },
+            verificarUsuarioGoogle: async (email, callback) => {
+                try {
+                    const usuario = await usuarioService.verificarUsuarioGoogle(email);
+                    callback(usuario);
+                } catch (error) {
+                    callback(null);
+                }
+            },
+            loginUsuario: (obj, callback) => {
+                usuarioService.loginUsuario(obj)
+                    .then(usuario => callback(usuario))
+                    .catch(error => callback({ email: -1, error: error.message }));
             }
-        }
+        };
 
-        usuariosOnlinePorGrupo[grupoId][socket.id] = {email: usuarioEmail, username: usuarioUsername};
+        requirePassportSetup(passport, sistemaAdaptado);
 
-        const lista = Array.from(new Set(Object.values(usuariosOnlinePorGrupo[grupoId]).map(u => u.email)));
-        io.to(grupoId).emit('usuariosOnlineActualizados', {grupoId, usuarios: lista});
-    });
+        // 6. Configurar rutas
+        const routerConfigurator = new RouterConfigurator(
+            usuarioController,
+            grupoController,
+            mensajeController,
+            passport
+        );
+        routerConfigurator.configurar(app);
 
-    socket.on('enviarMensaje', (mensaje) => {
-        sistema.enviarMensaje(mensaje, (msg) => {
-            if (msg && msg.id !== -1) io.to(mensaje.grupoId).emit('nuevoMensaje', msg);
+        // 6.5. Configurar rutas de Firebase Authentication
+        const haIniciado = (req, res, next) => {
+            if (req.isAuthenticated()) {
+                next();
+            } else {
+                res.status(401).json({ error: "No autenticado" });
+            }
+        };
+
+        app.post("/api/auth/firebase/verify", (req, res) =>
+            firebaseAuthController.verificarYAutenticar(req, res)
+        );
+
+        app.get("/api/auth/firebase/custom-token", haIniciado, (req, res) =>
+            firebaseAuthController.obtenerCustomToken(req, res)
+        );
+
+        app.post("/api/auth/firebase/logout", (req, res) =>
+            firebaseAuthController.cerrarSesion(req, res)
+        );
+
+        // Ruta para listar usuarios de Firebase (debug/admin)
+        app.get("/api/auth/firebase/users", haIniciado, async (req, res) => {
+            try {
+                const firebaseAuth = getFirebaseAuthService();
+                const usuarios = await firebaseAuth.listarUsuarios();
+                res.json({
+                    success: true,
+                    count: usuarios.length,
+                    usuarios: usuarios
+                });
+            } catch (error) {
+                console.error('❌ Error al listar usuarios:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error.message
+                });
+            }
         });
-    });
 
-    socket.on('escribiendo', (data) => socket.to(data.grupoId).emit('usuarioEscribiendo', data));
-    socket.on('dejoDeEscribir', (data) => socket.to(data.grupoId).emit('usuarioDejoDeEscribir', data));
+        console.log("✅ Rutas de Firebase Authentication configuradas");
 
-    const desconectar = () => {
-        const gId = socket.grupoId;
-        if (gId && usuariosOnlinePorGrupo[gId] && usuariosOnlinePorGrupo[gId][socket.id]) {
-            delete usuariosOnlinePorGrupo[gId][socket.id];
-            const lista = Array.from(new Set(Object.values(usuariosOnlinePorGrupo[gId]).map(u => u.email)));
-            io.to(gId).emit('usuariosOnlineActualizados', {grupoId: gId, usuarios: lista});
-            if (Object.keys(usuariosOnlinePorGrupo[gId]).length === 0) delete usuariosOnlinePorGrupo[gId];
-        }
-    };
+        // 7. Configurar Socket.IO
+        socketHandler = new SocketHandler(io, mensajeController);
+        socketHandler.inicializar();
 
-    socket.on('salirGrupo', (gId) => {
-        socket.leave(gId);
-        desconectar();
-    });
-    socket.on('disconnect', desconectar);
-});
+        // 8. Iniciar servidor
+        server.listen(PORT, "0.0.0.0", () => {
+            console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
+            console.log(`🔒 Modo Producción: ${config.server.isProduction ? 'SÍ' : 'NO'}`);
+            console.log("✅ Arquitectura desacoplada cargada exitosamente");
+        });
 
-server.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
-    console.log(`🔒 Modo Producción: ${config.server.isProduction ? 'SÍ' : 'NO'}`);
-});
+    } catch (error) {
+        console.error("❌ Error al inicializar la aplicación:", error);
+        process.exit(1);
+    }
+}
+
+// Iniciar la aplicación
+inicializarAplicacion();
+

@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajustes - EsiiChat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 24px 32px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .header-text h1 {
+            font-size: 28px;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .header-text p {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .btn-back {
+            background: #f1f5f9;
+            color: #475569;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-back:hover {
+            background: #e2e8f0;
+            transform: translateY(-2px);
+        }
+
+        .settings-grid {
+            display: grid;
+            gap: 24px;
+        }
+
+        .settings-card {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        .card-header h2 {
+            font-size: 20px;
+            color: #1e293b;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #475569;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .danger-zone {
+            background: #fef2f2;
+            border: 2px solid #fecaca;
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .danger-zone-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .danger-icon {
+            color: #ef4444;
+            font-size: 24px;
+        }
+
+        .danger-zone h3 {
+            color: #991b1b;
+            font-size: 18px;
+        }
+
+        .danger-zone p {
+            color: #7f1d1d;
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+
+        .alert {
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            border: 2px solid #6ee7b7;
+            color: #065f46;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            border: 2px solid #fca5a5;
+            color: #991b1b;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlide 0.3s ease;
+        }
+
+        @keyframes modalSlide {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            background: #fecaca;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #dc2626;
+            font-size: 24px;
+        }
+
+        .modal h3 {
+            font-size: 22px;
+            color: #1e293b;
+        }
+
+        .modal p {
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .user-info-display {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .user-info-display p {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .user-info-display strong {
+            color: #1e293b;
+            font-size: 16px;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn-primary:disabled,
+        .btn-danger:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .settings-card {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div class="header-icon">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Ajustes de Cuenta</h1>
+                    <p id="userEmail">Cargando...</p>
+                </div>
+            </div>
+            <button class="btn-back" onclick="window.location.href='/cliente/grupos.html'">
+                <i class="fas fa-arrow-left"></i>
+                Volver
+            </button>
+        </div>
+
+        <div class="settings-grid">
+            <!-- Cambiar Nombre de Usuario -->
+            <div class="settings-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-user-edit"></i>
+                    </div>
+                    <h2>Cambiar Nombre de Usuario</h2>
+                </div>
+
+                <div class="user-info-display">
+                    <p>Nombre de usuario actual:</p>
+                    <strong id="currentUsername">Cargando...</strong>
+                </div>
+
+                <div class="alert alert-success" id="usernameSuccess">
+                    <i class="fas fa-check-circle"></i> Nombre de usuario actualizado correctamente
+                </div>
+                <div class="alert alert-error" id="usernameError"></div>
+
+                <form id="formUsername">
+                    <div class="form-group">
+                        <label for="nuevoUsername">Nuevo nombre de usuario</label>
+                        <input
+                            type="text"
+                            id="nuevoUsername"
+                            placeholder="Ej: juan_123"
+                            pattern="[a-zA-Z0-9_]{3,20}"
+                            title="3-20 caracteres alfanuméricos"
+                            required
+                        >
+                    </div>
+                    <button type="submit" class="btn-primary" id="btnUsername">
+                        <i class="fas fa-save"></i>
+                        Guardar Cambios
+                    </button>
+                </form>
+            </div>
+
+            <!-- Cambiar Contraseña -->
+            <div class="settings-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <h2>Cambiar Contraseña</h2>
+                </div>
+
+                <div class="alert alert-success" id="passwordSuccess">
+                    <i class="fas fa-check-circle"></i> Contraseña actualizada correctamente
+                </div>
+                <div class="alert alert-error" id="passwordError"></div>
+
+                <form id="formPassword">
+                    <div class="form-group">
+                        <label for="passwordActual">Contraseña actual</label>
+                        <input
+                            type="password"
+                            id="passwordActual"
+                            placeholder="Ingresa tu contraseña actual"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="passwordNueva">Nueva contraseña</label>
+                        <input
+                            type="password"
+                            id="passwordNueva"
+                            placeholder="Mínimo 8 caracteres"
+                            minlength="8"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="passwordConfirmar">Confirmar nueva contraseña</label>
+                        <input
+                            type="password"
+                            id="passwordConfirmar"
+                            placeholder="Repite la nueva contraseña"
+                            minlength="8"
+                            required
+                        >
+                    </div>
+                    <button type="submit" class="btn-primary" id="btnPassword">
+                        <i class="fas fa-lock"></i>
+                        Actualizar Contraseña
+                    </button>
+                </form>
+            </div>
+
+            <!-- Zona de Peligro -->
+            <div class="settings-card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h2>Zona de Peligro</h2>
+                </div>
+
+                <div class="danger-zone">
+                    <div class="danger-zone-header">
+                        <i class="fas fa-skull-crossbones danger-icon"></i>
+                        <h3>Eliminar Cuenta</h3>
+                    </div>
+                    <p>
+                        <strong>⚠️ Esta acción es permanente e irreversible.</strong><br>
+                        Se eliminarán todos tus datos, mensajes y serás removido de todos los grupos.
+                        No podrás recuperar tu cuenta después de eliminarla.
+                    </p>
+                    <button class="btn-danger" id="btnEliminarCuenta">
+                        <i class="fas fa-trash-alt"></i>
+                        Eliminar Mi Cuenta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación -->
+    <div class="modal-overlay" id="modalEliminar">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3>¿Eliminar tu cuenta?</h3>
+            </div>
+            <p>
+                Esta es tu última oportunidad. Ingresa tu contraseña para confirmar la eliminación permanente de tu cuenta.
+            </p>
+            <form id="formEliminarCuenta">
+                <div class="form-group">
+                    <label for="passwordEliminar">Confirma tu contraseña</label>
+                    <input
+                        type="password"
+                        id="passwordEliminar"
+                        placeholder="Ingresa tu contraseña"
+                        required
+                    >
+                </div>
+                <div class="alert alert-error" id="deleteError"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="btnCancelarEliminar">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn-danger" id="btnConfirmarEliminar">
+                        <i class="fas fa-trash-alt"></i>
+                        Eliminar Permanentemente
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let usuarioActual = null;
+
+        // Inicializar página
+        async function inicializar() {
+            try {
+                // Verificar sesión
+                const response = await fetch('/ok', {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    window.location.href = '/';
+                    return;
+                }
+
+                usuarioActual = await response.json();
+                document.getElementById('userEmail').textContent = usuarioActual.nick;
+                document.getElementById('currentUsername').textContent = usuarioActual.username;
+
+            } catch (error) {
+                console.error('Error al cargar datos:', error);
+                window.location.href = '/';
+            }
+        }
+
+        // Cambiar nombre de usuario
+        document.getElementById('formUsername').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const btn = document.getElementById('btnUsername');
+            const nuevoUsername = document.getElementById('nuevoUsername').value.trim();
+            const successAlert = document.getElementById('usernameSuccess');
+            const errorAlert = document.getElementById('usernameError');
+
+            // Ocultar alertas
+            successAlert.style.display = 'none';
+            errorAlert.style.display = 'none';
+
+            // Validación
+            if (!/^[a-zA-Z0-9_]{3,20}$/.test(nuevoUsername)) {
+                errorAlert.textContent = 'Username inválido (3-20 caracteres alfanuméricos)';
+                errorAlert.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader"></span> Guardando...';
+
+            try {
+                const response = await fetch('/api/usuario/actualizar-username', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ nuevoUsername })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    successAlert.style.display = 'block';
+                    document.getElementById('currentUsername').textContent = data.username;
+                    document.getElementById('nuevoUsername').value = '';
+                    usuarioActual.username = data.username;
+                } else {
+                    errorAlert.textContent = data.error || 'Error al actualizar';
+                    errorAlert.style.display = 'block';
+                }
+            } catch (error) {
+                errorAlert.textContent = 'Error de conexión';
+                errorAlert.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
+            }
+        });
+
+        // Cambiar contraseña
+        document.getElementById('formPassword').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const btn = document.getElementById('btnPassword');
+            const passwordActual = document.getElementById('passwordActual').value;
+            const passwordNueva = document.getElementById('passwordNueva').value;
+            const passwordConfirmar = document.getElementById('passwordConfirmar').value;
+            const successAlert = document.getElementById('passwordSuccess');
+            const errorAlert = document.getElementById('passwordError');
+
+            successAlert.style.display = 'none';
+            errorAlert.style.display = 'none';
+
+            if (passwordNueva !== passwordConfirmar) {
+                errorAlert.textContent = 'Las contraseñas no coinciden';
+                errorAlert.style.display = 'block';
+                return;
+            }
+
+            if (passwordNueva.length < 8) {
+                errorAlert.textContent = 'La contraseña debe tener mínimo 8 caracteres';
+                errorAlert.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader"></span> Actualizando...';
+
+            try {
+                const response = await fetch('/api/usuario/actualizar-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ passwordActual, passwordNueva })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    successAlert.style.display = 'block';
+                    document.getElementById('formPassword').reset();
+                } else {
+                    errorAlert.textContent = data.error || 'Error al actualizar';
+                    errorAlert.style.display = 'block';
+                }
+            } catch (error) {
+                errorAlert.textContent = 'Error de conexión';
+                errorAlert.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-lock"></i> Actualizar Contraseña';
+            }
+        });
+
+        // Mostrar modal de eliminar
+        document.getElementById('btnEliminarCuenta').addEventListener('click', () => {
+            document.getElementById('modalEliminar').classList.add('active');
+        });
+
+        // Cancelar eliminación
+        document.getElementById('btnCancelarEliminar').addEventListener('click', () => {
+            document.getElementById('modalEliminar').classList.remove('active');
+            document.getElementById('formEliminarCuenta').reset();
+            document.getElementById('deleteError').style.display = 'none';
+        });
+
+        // Confirmar eliminación
+        document.getElementById('formEliminarCuenta').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const btn = document.getElementById('btnConfirmarEliminar');
+            const password = document.getElementById('passwordEliminar').value;
+            const errorAlert = document.getElementById('deleteError');
+
+            errorAlert.style.display = 'none';
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader"></span> Eliminando...';
+
+            try {
+                const response = await fetch('/api/usuario/eliminar-cuenta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Tu cuenta ha sido eliminada. Serás redirigido a la página principal.');
+                    window.location.href = '/';
+                } else {
+                    errorAlert.textContent = data.error || 'Error al eliminar cuenta';
+                    errorAlert.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-trash-alt"></i> Eliminar Permanentemente';
+                }
+            } catch (error) {
+                errorAlert.textContent = 'Error de conexión';
+                errorAlert.style.display = 'block';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash-alt"></i> Eliminar Permanentemente';
+            }
+        });
+
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('modalEliminar').addEventListener('click', (e) => {
+            if (e.target.id === 'modalEliminar') {
+                document.getElementById('modalEliminar').classList.remove('active');
+            }
+        });
+
+        // Inicializar al cargar
+        inicializar();
+    </script>
+</body>
+</html>
+

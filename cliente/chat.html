@@ -569,12 +569,13 @@
             font-size: 18px;
         }
 
-        /* Panel Derecho - Usuarios Activos */
+        /* Panel Izquierdo - Grupos del Usuario */
         .chat-sidebar {
             width: 300px;
             background: white;
             display: flex;
             flex-direction: column;
+            border-right: 1px solid #e2e8f0;
         }
 
         .sidebar-header {
@@ -611,13 +612,13 @@
             margin-left: auto;
         }
 
-        .usuarios-list {
+        .grupos-list {
             flex: 1;
             overflow-y: auto;
             padding: 12px;
         }
 
-        .usuario-item {
+        .grupo-item {
             display: flex;
             align-items: center;
             gap: 12px;
@@ -625,10 +626,52 @@
             border-radius: 10px;
             transition: all 0.2s;
             cursor: pointer;
+            text-decoration: none;
+            color: inherit;
         }
 
-        .usuario-item:hover {
+        .grupo-item:hover {
             background: #f8fafc;
+            transform: translateX(2px);
+        }
+
+        .grupo-item.active {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-left: 3px solid #2563eb;
+        }
+
+        .grupo-item-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .grupo-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .grupo-item-nombre {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+        }
+
+        .grupo-item-miembros {
+            font-size: 12px;
+            color: #64748b;
         }
 
         .usuario-item.offline .usuario-status {
@@ -855,6 +898,24 @@
 
     <!-- Container del chat (oculto hasta que cargue) -->
     <div class="chat-container" id="chatContainer">
+        <!-- Sidebar de Grupos del Usuario (Panel Izquierdo) -->
+        <div class="chat-sidebar" id="chatSidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">
+                    <i class="fas fa-layer-group"></i>
+                    Mis Grupos
+                    <span class="grupos-badge" id="gruposBadge">0</span>
+                </div>
+            </div>
+            <div class="grupos-list" id="gruposList">
+                <!-- Los grupos se cargarán dinámicamente -->
+                <div style="text-align: center; padding: 40px 20px; color: #94a3b8;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 12px;"></i>
+                    <div style="font-size: 13px;">Cargando grupos...</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Panel Principal del Chat -->
         <div class="chat-main">
             <!-- Header del Chat -->
@@ -933,20 +994,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Sidebar de Usuarios Activos -->
-        <div class="chat-sidebar" id="chatSidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-title">
-                    <i class="fas fa-users"></i>
-                    Miembros del Grupo
-                    <span class="online-badge" id="onlineBadge">0</span>
-                </div>
-            </div>
-            <div class="usuarios-list" id="usuariosList">
-                <!-- Los usuarios se cargarán dinámicamente -->
             </div>
         </div>
     </div>
@@ -1038,7 +1085,7 @@
 
                 // Actualizar UI
                 actualizarHeaderGrupo();
-                cargarMiembrosGrupo();
+                cargarGruposUsuario(); // Cargar grupos del usuario en el sidebar
 
                 // Actualizar loader
                 actualizarLoader('Conectando al servidor...');
@@ -1215,89 +1262,131 @@
                 `¡Bienvenido al grupo ${grupoActual.nombre}!`;
         }
 
-        async function cargarMiembrosGrupo() {
-            const usuariosList = document.getElementById('usuariosList');
-            usuariosList.innerHTML = '';
+        async function cargarGruposUsuario() {
+            const gruposList = document.getElementById('gruposList');
+            const gruposBadge = document.getElementById('gruposBadge');
 
-            // Obtener información de los usuarios
-            let nombresUsuarios = {};
             try {
-                const response = await fetch('/api/usuarios/info', {
-                    method: 'POST',
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/api/usuario/mis-grupos?_t=${timestamp}`, {
                     credentials: 'include',
+                    cache: 'no-store',
                     headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ emails: grupoActual.miembros })
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
                 });
 
                 if (response.ok) {
-                    nombresUsuarios = await response.json();
+                    const grupos = await response.json();
+                    gruposList.innerHTML = '';
+
+                    if (grupos.length === 0) {
+                        gruposList.innerHTML = `
+                            <div style="text-align: center; padding: 40px 20px; color: #94a3b8;">
+                                <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 12px;"></i>
+                                <div style="font-size: 13px;">No estás en ningún grupo aún</div>
+                                <button onclick="window.location.href='/cliente/grupos.html'" style="
+                                    margin-top: 16px;
+                                    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                                    color: white;
+                                    border: none;
+                                    padding: 8px 16px;
+                                    border-radius: 8px;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                ">
+                                    Explorar Grupos
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        grupos.forEach(grupo => {
+                            const isActive = grupo.id === grupoActual.id;
+                            const miembrosCount = grupo.miembros ? grupo.miembros.length : 0;
+
+                            const div = document.createElement('div');
+                            div.className = 'grupo-item' + (isActive ? ' active' : '');
+                            div.onclick = () => {
+                                if (grupo.id !== grupoActual.id) {
+                                    window.location.href = `/cliente/chat.html?id=${grupo.id}`;
+                                }
+                            };
+
+                            const icon = obtenerIconoGrupo(grupo.nombre);
+
+                            div.innerHTML = `
+                                <div class="grupo-item-icon">
+                                    <i class="${icon}"></i>
+                                </div>
+                                <div class="grupo-item-info">
+                                    <div class="grupo-item-nombre">${grupo.nombre}</div>
+                                    <div class="grupo-item-miembros">
+                                        <i class="fas fa-users" style="font-size: 11px;"></i> ${miembrosCount} miembros
+                                    </div>
+                                </div>
+                            `;
+
+                            gruposList.appendChild(div);
+                        });
+
+                        gruposBadge.textContent = grupos.length;
+                    }
+                } else {
+                    console.error('Error al cargar grupos del usuario');
+                    gruposList.innerHTML = `
+                        <div style="text-align: center; padding: 40px 20px; color: #ef4444;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 24px; margin-bottom: 12px;"></i>
+                            <div style="font-size: 13px;">Error al cargar grupos</div>
+                        </div>
+                    `;
                 }
             } catch (error) {
-                console.error('Error al obtener nombres de usuarios:', error);
-            }
-
-            for (const miembro of grupoActual.miembros) {
-                const div = document.createElement('div');
-                div.className = 'usuario-item';
-                div.dataset.email = miembro;
-
-                const username = nombresUsuarios[miembro]?.username || miembro.split('@')[0];
-                const iniciales = obtenerInicialesDeNombre(username);
-                const esTu = miembro === usuarioActual.email;
-                const isOnline = usuariosOnline.has(miembro);
-
-                if (!isOnline && !esTu) {
-                    div.classList.add('offline');
-                }
-
-                div.innerHTML = `
-                    <div class="usuario-avatar" style="background: ${generarColorAvatar(miembro)};">
-                        ${iniciales}
-                        <span class="usuario-status"></span>
-                    </div>
-                    <div class="usuario-info">
-                        <div class="usuario-nombre">${username}${esTu ? ' (tú)' : ''}</div>
-                        <div class="usuario-estado">${isOnline || esTu ? 'En línea' : 'Desconectado'}</div>
+                console.error('Error al cargar grupos:', error);
+                gruposList.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: #ef4444;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 24px; margin-bottom: 12px;"></i>
+                        <div style="font-size: 13px;">Error al cargar grupos</div>
                     </div>
                 `;
-
-                usuariosList.appendChild(div);
             }
-
-            actualizarContadorOnline();
         }
 
+        function obtenerIconoGrupo(nombreGrupo) {
+            const iconos = {
+                'Desarrollo Web': 'fas fa-code',
+                'Bases de Datos': 'fas fa-database',
+                'Inteligencia Artificial': 'fas fa-brain',
+                'Redes y Sistemas': 'fas fa-network-wired',
+                'Ingeniería del Software': 'fas fa-project-diagram',
+                'Programación Básica': 'fas fa-terminal'
+            };
+            return iconos[nombreGrupo] || 'fas fa-comments';
+        }
+
+        async function cargarMiembrosGrupo() {
+            // Esta función ya no se usa, pero la mantenemos por compatibilidad
+            // Los miembros ya no se muestran en el sidebar
+            console.log('✅ Miembros del grupo:', grupoActual.miembros.length);
+        }
+
+        /**
+         * Actualiza el contador de usuarios online (ya no se usa en UI pero mantenido para logs)
+         */
         function actualizarContadorOnline() {
-            const badge = document.getElementById('onlineBadge');
-            const count = usuariosOnline.size + 1; // +1 por el usuario actual
-            if (badge) {
-                badge.textContent = count;
-            }
+            console.log(`📊 Usuarios online: ${usuariosOnline.size}`);
         }
 
         function actualizarEstadoUsuario(email, isOnline) {
-            const usuarioItem = document.querySelector(`.usuario-item[data-email="${email}"]`);
-            if (!usuarioItem) return;
-
-            const estadoDiv = usuarioItem.querySelector('.usuario-estado');
-
+            // Función mantenida para compatibilidad, ya no actualiza UI
             if (isOnline) {
                 usuariosOnline.add(email);
-                usuarioItem.classList.remove('offline');
-                if (estadoDiv) {
-                    estadoDiv.textContent = 'En línea';
-                }
             } else {
                 usuariosOnline.delete(email);
-                usuarioItem.classList.add('offline');
-                if (estadoDiv) {
-                    estadoDiv.textContent = 'Desconectado';
-                }
             }
-
-            actualizarContadorOnline();
+            console.log(`👤 Usuario ${email} ahora está ${isOnline ? 'online' : 'offline'}`);
         }
 
         function inicializarWebSocket() {
@@ -1316,14 +1405,17 @@
                     usuarioUsername: usuarioActual.username
                 });
 
-                // Marcar usuario actual como online
-                usuariosOnline.add(usuarioActual.email);
-                actualizarContadorOnline();
+                // No agregar manualmente al usuario actual
+                // El servidor lo incluirá en la lista de usuariosOnlineActualizados
+                console.log('📡 Esperando lista de usuarios online del servidor...');
             });
 
             socket.on('disconnect', () => {
                 console.log('❌ Desconectado de WebSocket');
                 document.getElementById('chatSubtitulo').textContent = 'Desconectado';
+                // Limpiar usuarios online
+                usuariosOnline.clear();
+                actualizarContadorOnline();
             });
 
             // Recibir nuevos mensajes
@@ -1362,15 +1454,21 @@
                 }
             });
 
-            // Lista de usuarios online actualizada
+            // Lista de usuarios online actualizada (no se muestra en sidebar, solo para logs)
             socket.on('usuariosOnlineActualizados', (data) => {
                 console.log('📋 Lista de usuarios online actualizada:', data);
                 if (data.grupoId === grupoActual.id) {
+                    // Limpiar y reconstruir desde el servidor (fuente de verdad)
                     usuariosOnline.clear();
-                    data.usuarios.forEach(email => {
-                        usuariosOnline.add(email);
-                    });
-                    cargarMiembrosGrupo();
+                    // Validar que data.usuarios existe y es un array
+                    if (Array.isArray(data.usuarios)) {
+                        data.usuarios.forEach(email => {
+                            usuariosOnline.add(email);
+                        });
+                        console.log(`✅ ${usuariosOnline.size} usuarios online en el grupo`);
+                    } else {
+                        console.warn('⚠️ Lista de usuarios inválida recibida:', data);
+                    }
                 }
             });
         }

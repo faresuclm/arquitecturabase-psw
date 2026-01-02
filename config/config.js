@@ -44,6 +44,30 @@ const config = {
         callbackUri: process.env.GCALLBACK_URI,
     },
 
+    // === FIREBASE ===
+    firebase: {
+        // Configuración del cliente (pública - se puede compartir con el frontend)
+        client: {
+            apiKey: process.env.FIREBASE_API_KEY,
+            authDomain: process.env.FIREBASE_AUTH_DOMAIN || 'arquitecturabase-psw.firebaseapp.com',
+            projectId: process.env.FIREBASE_PROJECT_ID || 'arquitecturabase-psw',
+            storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'arquitecturabase-psw.firebasestorage.app',
+            messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+            appId: process.env.FIREBASE_APP_ID,
+            measurementId: process.env.FIREBASE_MEASUREMENT_ID
+        },
+        // Configuración del servidor (privada - Service Account)
+        serviceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './firebase-service-account.json',
+        // Dominios autorizados (según Firebase Console)
+        authorizedDomains: [
+            'localhost',
+            '127.0.0.1',
+            'arquitecturabase-psw.firebaseapp.com',
+            'arquitecturabase-psw.web.app',
+            'arquitecturabase-psw-4977256336o.europe-west1.run.app'
+        ]
+    },
+
     // === APP INFO ===
     app: {
         name: process.env.APP_NAME || 'esiiChat',
@@ -60,7 +84,8 @@ const config = {
                 'MONGODB_USER',
                 'EMAIL_PASSWORD',
                 'GCLIENT_SECRET',
-                'SESSION_KEY_1'
+                'SESSION_KEY_1',
+                'FIREBASE_API_KEY'
             ];
 
             const missing = required.filter(key => !process.env[key]);

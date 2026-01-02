@@ -177,11 +177,44 @@ function ControlWeb() {
                 cw.mostrarLogin();
             });
 
-            // Botón Google REGISTRO - Apunta a la ruta de Registro explícita
-            $("#btnGoogleRegistro").attr("href", "/auth/google/registro");
-            $("#btnGoogleRegistro").on("click", function (e) {
-                // Dejar que el enlace funcione normalmente
-            });
+            // Botón Google REGISTRO - Configurar click handler para redirigir
+            // Esperar a que el botón exista en el DOM
+            setTimeout(function() {
+                const btnGoogleRegistro = $("#btnGoogleRegistro");
+                if (btnGoogleRegistro.length) {
+                    // Eliminar handlers previos para evitar duplicados
+                    btnGoogleRegistro.off("click");
+
+                    // Agregar nuevo handler
+                    btnGoogleRegistro.on("click", function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const btn = $(this);
+                        const googleText = btn.find('.google-text');
+                        const googleSpinner = btn.find('.google-spinner');
+                        const googleIcon = btn.find('.google-icon');
+
+                        // Deshabilitar botón y mostrar spinner
+                        btn.prop('disabled', true);
+                        btn.addClass('disabled');
+                        googleText.hide();
+                        googleIcon.hide();
+                        googleSpinner.show();
+
+                        console.log('🔐 Iniciando registro con Google OAuth...');
+
+                        // Redirigir a la ruta de autenticación de Google
+                        setTimeout(function() {
+                            window.location.href = '/auth/google/registro';
+                        }, 100);
+                    });
+
+                    console.log('✅ Handler de Google Registro configurado');
+                } else {
+                    console.warn('⚠️ Botón Google Registro no encontrado en el DOM');
+                }
+            }, 200);
 
             // Configurar handlers del modal de Google en registro
             cw.configurarHandlersModalGoogleRegistro();
@@ -284,8 +317,44 @@ function ControlWeb() {
                 cw.mostrarRecuperarPassword();
             });
 
-            // Botón Google LOGIN - Apunta a la ruta de Login explícita
-            $("#btnGoogleLogin").attr("href", "/auth/google/login");
+            // Botón Google LOGIN - Configurar click handler para redirigir
+            // Esperar a que el botón exista en el DOM
+            setTimeout(function() {
+                const btnGoogleLogin = $("#btnGoogleLogin");
+                if (btnGoogleLogin.length) {
+                    // Eliminar handlers previos para evitar duplicados
+                    btnGoogleLogin.off("click");
+
+                    // Agregar nuevo handler
+                    btnGoogleLogin.on("click", function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const btn = $(this);
+                        const googleText = btn.find('.google-text');
+                        const googleSpinner = btn.find('.google-spinner');
+                        const googleIcon = btn.find('.google-icon');
+
+                        // Deshabilitar botón y mostrar spinner
+                        btn.prop('disabled', true);
+                        btn.addClass('disabled');
+                        googleText.hide();
+                        googleIcon.hide();
+                        googleSpinner.show();
+
+                        console.log('🔐 Iniciando login con Google OAuth...');
+
+                        // Redirigir a la ruta de autenticación de Google
+                        setTimeout(function() {
+                            window.location.href = '/auth/google/login';
+                        }, 100);
+                    });
+
+                    console.log('✅ Handler de Google Login configurado');
+                } else {
+                    console.warn('⚠️ Botón Google Login no encontrado en el DOM');
+                }
+            }, 200);
 
             // Inicializar One Tap SOLO en el login, usando config del servidor
             fetch('/api/config')
@@ -832,13 +901,19 @@ function ControlWeb() {
                     // Pre-rellenar el email en el formulario de login
                     $("#emailLogin").val(decodeURIComponent(email));
                 }
+                // Login exitoso con Google - redirigir a grupos
+                else if (googleSuccess === 'login_success') {
+                    console.log('✅ Login con Google exitoso, redirigiendo a grupos...');
+                    window.location.href = '/cliente/grupos.html';
+                    return; // Importante para evitar que se ejecute más código
+                }
                 // Caso especial: Nuevo usuario de Google necesita definir contraseña en LOGIN
                 else if (googleSuccess === 'new_user' && email) {
                     cw.mostrarModalPasswordGoogle(email);
                 }
 
-                // Limpiar la URL después de mostrar el mensaje (excepto para new_user)
-                if (googleSuccess !== 'new_user' && (verificado || error || googleSuccess)) {
+                // Limpiar la URL después de mostrar el mensaje (excepto para new_user y login_success)
+                if (googleSuccess !== 'new_user' && googleSuccess !== 'login_success' && (verificado || error || googleSuccess)) {
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             }, 500);
