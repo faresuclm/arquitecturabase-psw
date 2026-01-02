@@ -82,41 +82,107 @@ class RouterConfigurator {
                 failureRedirect: "/fallo",
                 session: true
             }),
-            (req, res) => res.redirect("/good")
+            (req, res) => {
+                console.log('📍 En /google/callback');
+                console.log('👤 req.user:', req.user ? 'Existe' : 'NO EXISTE');
+                console.log('🔑 req.isAuthenticated():', req.isAuthenticated ? req.isAuthenticated() : 'Método no disponible');
+                console.log('📦 req.session:', req.session ? 'Existe' : 'NO EXISTE');
+
+                if (req.user) {
+                    console.log('✅ Usuario autenticado correctamente, datos:', {
+                        emails: req.user.emails,
+                        displayName: req.user.displayName,
+                        id: req.user.id
+                    });
+                } else {
+                    console.error('❌ PROBLEMA: req.user es undefined/null después de authenticate');
+                }
+
+                res.redirect("/good");
+            }
         );
 
         app.get("/good", async (req, res) => {
-            if (!req.user || !req.user.emails) {
-                return res.redirect("/?error=auth_failed");
+            console.log('📍 En /good');
+            console.log('👤 req.user completo:', JSON.stringify(req.user, null, 2));
+            console.log('🔑 req.isAuthenticated():', req.isAuthenticated ? req.isAuthenticated() : 'N/A');
+            console.log('📦 req.session:', req.session);
+
+            if (!req.user) {
+                console.error("❌ ERROR CRÍTICO: req.user es undefined/null");
+                return res.redirect("/?error=auth_failed&message=" + encodeURIComponent("Usuario no válido en callback"));
             }
 
-            const email = req.user.emails[0].value;
+            // Buscar el email en diferentes ubicaciones del profile
+            let email = null;
+
+            // Opción 1: req.user.emails[0].value (formato estándar de Passport Google OAuth)
+            if (req.user.emails && req.user.emails[0] && req.user.emails[0].value) {
+                email = req.user.emails[0].value;
+                console.log('✅ Email encontrado en req.user.emails[0].value:', email);
+            }
+            // Opción 2: req.user.email (formato alternativo)
+            else if (req.user.email) {
+                email = req.user.email;
+                console.log('✅ Email encontrado en req.user.email:', email);
+            }
+            // Opción 3: req.user._json.email (formato de Google)
+            else if (req.user._json && req.user._json.email) {
+                email = req.user._json.email;
+                console.log('✅ Email encontrado en req.user._json.email:', email);
+            }
+
+            if (!email) {
+                console.error("❌ ERROR: No se pudo obtener el email del usuario");
+                console.error("req.user completo:", JSON.stringify(req.user, null, 2));
+                return res.redirect("/?error=auth_failed&message=" + encodeURIComponent("Email no disponible"));
+            }
+
+            const googleOrigin = req.session.googleOrigin || 'login';
+
+            console.log(`🔐 Callback de Google OAuth - Email: ${email}, Origen: ${googleOrigin}`);
 
             try {
-                // Usar el servicio a través del controlador
+                // Verificar si el usuario existe en la base de datos
                 const existeUsuario = await this.usuarioController.usuarioService.buscarPorEmail(email);
 
                 if (existeUsuario) {
-                    // Usuario existe - Login directo
+                    // ✅ USUARIO EXISTE - Login automático
+                    console.log(`✅ Usuario ${email} ya existe - Iniciando sesión automáticamente`);
+
                     req.logIn(existeUsuario, (err) => {
-                        if (err) return res.redirect("/?error=session_error");
+                        if (err) {
+                            console.error("❌ Error al iniciar sesión:", err);
+                            return res.redirect("/?error=session_error");
+                        }
+
+                        // Establecer cookies de sesión
                         res.cookie("nick", existeUsuario.email);
                         res.cookie("userName", existeUsuario.username || email.split('@')[0]);
+
+                        console.log(`✅ Sesión iniciada para ${email} - Redirigiendo a login_success`);
+
+                        // Redirigir con parámetro de éxito
                         res.redirect("/?google=login_success");
                     });
                 } else {
-                    // Usuario nuevo - Completar registro
+                    // ❌ USUARIO NO EXISTE - Mostrar modal para completar registro
+                    console.log(`📝 Usuario ${email} NO existe - Mostrando modal de registro`);
+
+                    // Guardar datos de Google en sesión para completar registro después
                     req.session.googleUserData = {
                         email: email,
                         confirmada: true,
                         provider: 'google'
                     };
+
+                    // Redirigir al cliente con parámetros para mostrar modal
                     res.redirect("/?view=login&modal=google_complete_registration&email=" +
                                 encodeURIComponent(email));
                 }
             } catch (error) {
-                console.error("Error en /good:", error);
-                res.redirect("/?error=auth_failed");
+                console.error("❌ Error en callback de Google:", error);
+                res.redirect("/?error=auth_failed&message=" + encodeURIComponent("Error al procesar tu cuenta"));
             }
         });
 

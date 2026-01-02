@@ -864,6 +864,67 @@ function ControlWeb() {
             // Limpiar la URL después de cargar el formulario
             window.history.replaceState({}, document.title, window.location.pathname);
         } else {
+            // Si viene de login con Google exitoso, esperar a que la sesión se establezca
+            if (googleSuccess === 'login_success') {
+                console.log('✅ Login con Google exitoso detectado');
+                console.log('⏳ Esperando a que la sesión se establezca...');
+
+                // Mostrar loader mientras se verifica la sesión
+                $("#mainContainer").show();
+                $("#mainContainer").html('<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column;">' +
+                    '<div style="width: 64px; height: 64px; border: 4px solid #e2e8f0; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>' +
+                    '<div style="margin-top: 24px; color: #64748b; font-size: 16px; font-weight: 500;">¡Bienvenido! Iniciando sesión...</div>' +
+                    '<style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}</style>' +
+                    '</div>');
+
+                // Verificar la sesión cada 500ms hasta que esté lista (máximo 5 intentos)
+                let intentos = 0;
+                const maxIntentos = 10;
+                const verificarSesion = setInterval(async function() {
+                    intentos++;
+                    console.log(`🔄 Intento ${intentos}/${maxIntentos} - Verificando sesión...`);
+
+                    try {
+                        const response = await fetch('/ok', {
+                            credentials: 'include',
+                            cache: 'no-store',
+                            headers: {
+                                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                'Pragma': 'no-cache',
+                                'Expires': '0'
+                            }
+                        });
+
+                        if (response.ok) {
+                            const userData = await response.json();
+                            console.log('✅ Sesión establecida correctamente:', userData.nick);
+                            clearInterval(verificarSesion);
+
+                            // Redirigir a grupos
+                            window.location.href = '/cliente/grupos.html';
+                        } else if (intentos >= maxIntentos) {
+                            console.error('❌ Timeout: La sesión no se estableció a tiempo');
+                            clearInterval(verificarSesion);
+
+                            // Mostrar error y recargar
+                            $("#mainContainer").html('<div style="text-align: center; padding: 40px;">' +
+                                '<div style="color: #ef4444; font-size: 18px; margin-bottom: 16px;">Error al establecer la sesión</div>' +
+                                '<div style="color: #64748b; margin-bottom: 24px;">Por favor, intenta de nuevo</div>' +
+                                '<button onclick="window.location.href=\'/\'" style="background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">Volver al Login</button>' +
+                                '</div>');
+                        }
+                    } catch (error) {
+                        console.error('Error al verificar sesión:', error);
+                        if (intentos >= maxIntentos) {
+                            clearInterval(verificarSesion);
+                            window.location.href = '/?error=session_timeout';
+                        }
+                    }
+                }, 500);
+
+                return; // No continuar con el flujo normal
+            }
+
             // Mostrar el contenedor principal para login/registro
             $("#mainContainer").show();
 
@@ -894,6 +955,10 @@ function ControlWeb() {
                     let errorMsg = message ? decodeURIComponent(message) : "Error al procesar tu cuenta. Por favor, intenta de nuevo más tarde.";
                     cw.mostrarMensajeError(errorMsg);
                 }
+                // Error de timeout de sesión
+                else if (error === 'session_timeout') {
+                    cw.mostrarMensajeError("La sesión tardó demasiado en establecerse. Por favor, intenta iniciar sesión de nuevo.");
+                }
 
                 // Usuario Google ya existe
                 else if (googleSuccess === 'already_exists' && email) {
@@ -901,19 +966,15 @@ function ControlWeb() {
                     // Pre-rellenar el email en el formulario de login
                     $("#emailLogin").val(decodeURIComponent(email));
                 }
-                // Login exitoso con Google - redirigir a grupos
-                else if (googleSuccess === 'login_success') {
-                    console.log('✅ Login con Google exitoso, redirigiendo a grupos...');
-                    window.location.href = '/cliente/grupos.html';
-                    return; // Importante para evitar que se ejecute más código
-                }
-                // Caso especial: Nuevo usuario de Google necesita definir contraseña en LOGIN
+                // 📝 Nuevo usuario de Google - Mostrar modal para completar registro
                 else if (googleSuccess === 'new_user' && email) {
+                    console.log('📝 Usuario nuevo de Google detectado');
+                    console.log('🔐 Mostrando modal para establecer usuario y contraseña');
                     cw.mostrarModalPasswordGoogle(email);
                 }
 
-                // Limpiar la URL después de mostrar el mensaje (excepto para new_user y login_success)
-                if (googleSuccess !== 'new_user' && googleSuccess !== 'login_success' && (verificado || error || googleSuccess)) {
+                // Limpiar la URL después de mostrar el mensaje (excepto para new_user)
+                if (googleSuccess !== 'new_user' && (verificado || error || googleSuccess)) {
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             }, 500);

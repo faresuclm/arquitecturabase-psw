@@ -87,32 +87,51 @@
     rest = new ClienteRest(cw);
     cw.comprobarSesion();
 
-    // Nueva lógica: Detectar si el servidor pide mostrar el modal de registro Google en la vista de Login
+    // Detectar si el servidor pide mostrar el modal de completar registro con Google
     $(document).ready(function () {
         const urlParams = new URLSearchParams(window.location.search);
 
-        // El servidor redirige a /?view=login&modal=google_complete_registration
+        // El servidor redirige a /?view=login&modal=google_complete_registration&email=...
+        // cuando el usuario NO existe en la base de datos
         if (urlParams.get('modal') === 'google_complete_registration') {
             const email = urlParams.get('email');
 
-            // Usamos un intervalo para esperar a que ControlWeb cargue el login.html en el DOM
+            console.log('📝 Usuario nuevo de Google detectado desde URL');
+            console.log('📧 Email:', email);
+            console.log('⏳ Esperando a que el modal esté disponible en el DOM...');
+
+            // Usar un intervalo para esperar a que ControlWeb cargue el login.html en el DOM
             const checkExist = setInterval(function () {
-                // Buscamos el modal específico que está dentro de login.html
+                // Buscar el modal específico que está dentro de login.html
                 if ($('#modalPasswordGoogle').length) {
+                    console.log('✅ Modal encontrado en el DOM');
+
+                    // Mostrar el modal
                     $('#modalPasswordGoogle').modal('show');
 
                     // Rellenar email visualmente
                     if (email && $('#googleEmail').length) {
                         $('#googleEmail').text(email);
+                        console.log('📧 Email establecido en el modal:', email);
                     }
 
                     clearInterval(checkExist);
+
+                    console.log('🎯 Modal de completar registro mostrado correctamente');
 
                     // Limpiar la URL
                     const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?view=login';
                     window.history.replaceState({path: newUrl}, '', newUrl);
                 }
             }, 100);
+
+            // Timeout de seguridad - si después de 5 segundos no aparece el modal
+            setTimeout(function() {
+                if ($('#modalPasswordGoogle').length === 0) {
+                    console.error('❌ Modal no apareció después de 5 segundos');
+                    console.error('⚠️ Asegúrate de que login.html contiene el modal #modalPasswordGoogle');
+                }
+            }, 5000);
         }
     });
 </script>

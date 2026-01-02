@@ -62,6 +62,31 @@ module.exports = function(passport, sistema) {
             proxy: true
         },
         function (accessToken, refreshToken, profile, done) {
+            // ✅ LOGS DE DEBUGGING
+            console.log('🎯 Google Strategy ejecutada exitosamente!');
+            console.log('📧 Email en profile.emails:', profile.emails ? profile.emails[0].value : '❌ NO HAY');
+            console.log('📧 Email en profile.email:', profile.email || '❌ NO HAY');
+            console.log('📧 Email en profile._json.email:', profile._json ? profile._json.email : '❌ NO HAY');
+            console.log('👤 Display Name:', profile.displayName || '❌ NO HAY NOMBRE');
+            console.log('🆔 Google ID:', profile.id || '❌ NO HAY ID');
+
+            // Normalizar el email si viene en diferentes formatos
+            if (!profile.emails || !profile.emails[0]) {
+                console.warn('⚠️ profile.emails no está disponible, intentando obtener de otras fuentes...');
+
+                if (profile.email) {
+                    profile.emails = [{ value: profile.email, verified: true }];
+                    console.log('✅ Email normalizado desde profile.email');
+                } else if (profile._json && profile._json.email) {
+                    profile.emails = [{ value: profile._json.email, verified: true }];
+                    console.log('✅ Email normalizado desde profile._json.email');
+                } else {
+                    console.error('❌ ERROR CRÍTICO: No se pudo obtener el email del profile de Google');
+                }
+            }
+
+            console.log('📦 Profile final:', JSON.stringify(profile, null, 2));
+
             return done(null, profile);
         }
     ));
