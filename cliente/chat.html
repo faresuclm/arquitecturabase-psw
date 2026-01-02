@@ -727,7 +727,170 @@
             color: #64748b;
         }
 
+        /* Panel Derecho - Miembros del Grupo */
+        .members-sidebar {
+            width: 280px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #e2e8f0;
+        }
+
+        .members-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .members-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .members-title i {
+            color: #2563eb;
+            font-size: 18px;
+            margin-right: 8px;
+        }
+
+        .members-count {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .members-online-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .members-online-count i {
+            font-size: 8px;
+            color: white;
+        }
+
+        .members-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .member-section {
+            margin-bottom: 24px;
+        }
+
+        .member-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 0.5px;
+            padding: 8px 12px 8px 12px;
+            margin-bottom: 4px;
+        }
+
+        .member-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            transition: all 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .member-item:hover {
+            background: #f8fafc;
+        }
+
+        .member-item.offline {
+            opacity: 0.6;
+        }
+
+        .member-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 13px;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .member-item.offline .member-avatar {
+            background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+        }
+
+        .member-status-dot {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid white;
+            background: #10b981;
+        }
+
+        .member-item.offline .member-status-dot {
+            background: #94a3b8;
+        }
+
+        .member-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .member-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+        }
+
+        .member-item.offline .member-name {
+            color: #64748b;
+        }
+
+        .member-status {
+            font-size: 11px;
+            color: #10b981;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .member-item.offline .member-status {
+            color: #94a3b8;
+        }
+
         /* Responsive */
+        @media (max-width: 1200px) {
+            .members-sidebar {
+                display: none;
+            }
+        }
+
         @media (max-width: 768px) {
             .chat-sidebar {
                 display: none;
@@ -996,6 +1159,44 @@
                 </div>
             </div>
         </div>
+
+        <!-- Panel Derecho - Miembros del Grupo -->
+        <div class="members-sidebar" id="membersSidebar">
+            <div class="members-header">
+                <div class="members-title">
+                    <div>
+                        <i class="fas fa-users"></i>
+                        Miembros
+                    </div>
+                    <span class="members-online-count" id="membersOnlineCount">
+                        <i class="fas fa-circle"></i>
+                        0
+                    </span>
+                </div>
+                <div class="members-count" id="membersCount">0 miembros en total</div>
+            </div>
+            <div class="members-list" id="membersList">
+                <!-- Miembros online -->
+                <div class="member-section" id="onlineMembersSection">
+                    <div class="member-section-title">En Línea</div>
+                    <div id="onlineMembersList">
+                        <!-- Los miembros online se cargarán dinámicamente -->
+                        <div style="text-align: center; padding: 20px; color: #94a3b8;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 20px; margin-bottom: 8px;"></i>
+                            <div style="font-size: 12px;">Cargando...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Miembros offline -->
+                <div class="member-section" id="offlineMembersSection">
+                    <div class="member-section-title">Desconectado</div>
+                    <div id="offlineMembersList">
+                        <!-- Los miembros offline se cargarán dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="/cliente/clienteRest.js"></script>
@@ -1007,6 +1208,7 @@
         let typingTimeout = null;
         let isTyping = false;
         let usuariosOnline = new Set();
+        let miembrosInfo = new Map(); // email -> {username, email}
         const MAX_CHARS = 1000;
 
         // Inicializar inmediatamente (ejecutar cuando el script se carga)
@@ -1086,6 +1288,12 @@
                 // Actualizar UI
                 actualizarHeaderGrupo();
                 cargarGruposUsuario(); // Cargar grupos del usuario en el sidebar
+
+                // Actualizar loader
+                actualizarLoader('Cargando miembros del grupo...');
+
+                // Cargar información de miembros
+                await cargarMiembrosGrupo();
 
                 // Actualizar loader
                 actualizarLoader('Conectando al servidor...');
@@ -1367,27 +1575,137 @@
         }
 
         async function cargarMiembrosGrupo() {
-            // Esta función ya no se usa, pero la mantenemos por compatibilidad
-            // Los miembros ya no se muestran en el sidebar
-            console.log('✅ Miembros del grupo:', grupoActual.miembros.length);
-        }
+            try {
+                // Obtener información de los usuarios del grupo
+                const response = await fetch('/api/usuarios/info', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ emails: grupoActual.miembros })
+                });
 
-        /**
-         * Actualiza el contador de usuarios online (ya no se usa en UI pero mantenido para logs)
-         */
-        function actualizarContadorOnline() {
-            console.log(`📊 Usuarios online: ${usuariosOnline.size}`);
-        }
+                if (response.ok) {
+                    const usuarios = await response.json();
 
-        function actualizarEstadoUsuario(email, isOnline) {
-            // Función mantenida para compatibilidad, ya no actualiza UI
-            if (isOnline) {
-                usuariosOnline.add(email);
-            } else {
-                usuariosOnline.delete(email);
+                    // Actualizar el mapa de miembros con la información
+                    miembrosInfo.clear();
+                    usuarios.forEach(usuario => {
+                        miembrosInfo.set(usuario.email, {
+                            email: usuario.email,
+                            username: usuario.username || usuario.email.split('@')[0]
+                        });
+                    });
+
+                    console.log('✅ Información de miembros cargada:', miembrosInfo.size);
+
+                    // Renderizar la lista de miembros
+                    renderizarMiembros();
+                } else {
+                    console.error('Error al cargar información de miembros');
+                }
+            } catch (error) {
+                console.error('Error al cargar miembros:', error);
             }
-            console.log(`👤 Usuario ${email} ahora está ${isOnline ? 'online' : 'offline'}`);
         }
+
+        function renderizarMiembros() {
+            const onlineList = document.getElementById('onlineMembersList');
+            const offlineList = document.getElementById('offlineMembersList');
+            const membersCountEl = document.getElementById('membersCount');
+            const onlineCountEl = document.getElementById('membersOnlineCount');
+
+            if (!onlineList || !offlineList) return;
+
+            // Limpiar listas
+            onlineList.innerHTML = '';
+            offlineList.innerHTML = '';
+
+            const miembrosOnline = [];
+            const miembrosOffline = [];
+
+            // Clasificar miembros en online y offline
+            miembrosInfo.forEach((info, email) => {
+                if (usuariosOnline.has(email)) {
+                    miembrosOnline.push(info);
+                } else {
+                    miembrosOffline.push(info);
+                }
+            });
+
+            // Ordenar alfabéticamente
+            miembrosOnline.sort((a, b) => a.username.localeCompare(b.username));
+            miembrosOffline.sort((a, b) => a.username.localeCompare(b.username));
+
+            // Renderizar miembros online
+            if (miembrosOnline.length === 0) {
+                onlineList.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #94a3b8;">
+                        <i class="fas fa-user-slash" style="font-size: 20px; margin-bottom: 8px;"></i>
+                        <div style="font-size: 12px;">Nadie en línea</div>
+                    </div>
+                `;
+            } else {
+                miembrosOnline.forEach(miembro => {
+                    onlineList.appendChild(crearElementoMiembro(miembro, true));
+                });
+            }
+
+            // Renderizar miembros offline
+            miembrosOffline.forEach(miembro => {
+                offlineList.appendChild(crearElementoMiembro(miembro, false));
+            });
+
+            // Actualizar contadores
+            if (membersCountEl) {
+                membersCountEl.textContent = `${miembrosInfo.size} miembros en total`;
+            }
+            if (onlineCountEl) {
+                onlineCountEl.innerHTML = `
+                    <i class="fas fa-circle"></i>
+                    ${miembrosOnline.length}
+                `;
+            }
+
+            console.log(`📊 Miembros renderizados: ${miembrosOnline.length} online, ${miembrosOffline.length} offline`);
+        }
+
+        function crearElementoMiembro(miembro, isOnline) {
+            const div = document.createElement('div');
+            div.className = 'member-item' + (isOnline ? '' : ' offline');
+            div.dataset.email = miembro.email;
+
+            const iniciales = obtenerIniciales(miembro.username);
+            const estadoTexto = isOnline ? 'En línea' : 'Desconectado';
+
+            // Marcar si es el usuario actual
+            const esTu = miembro.email === usuarioActual.email;
+            const displayName = esTu ? `${miembro.username} (tú)` : miembro.username;
+
+            div.innerHTML = `
+                <div class="member-avatar">
+                    ${iniciales}
+                    <div class="member-status-dot"></div>
+                </div>
+                <div class="member-info">
+                    <div class="member-name">${escaparHTML(displayName)}</div>
+                    <div class="member-status">${estadoTexto}</div>
+                </div>
+            `;
+
+            return div;
+        }
+
+        function obtenerIniciales(username) {
+            if (!username) return '??';
+            const palabras = username.split(/[\s_]+/);
+            if (palabras.length >= 2) {
+                return (palabras[0][0] + palabras[1][0]).toUpperCase();
+            }
+            return username.substring(0, 2).toUpperCase();
+        }
+
 
         function inicializarWebSocket() {
             // Conectar a Socket.IO
@@ -1415,7 +1733,8 @@
                 document.getElementById('chatSubtitulo').textContent = 'Desconectado';
                 // Limpiar usuarios online
                 usuariosOnline.clear();
-                actualizarContadorOnline();
+                // Actualizar UI de miembros
+                renderizarMiembros();
             });
 
             // Recibir nuevos mensajes
@@ -1438,37 +1757,36 @@
                 }
             });
 
-            // Usuario se conectó al grupo
-            socket.on('usuarioConectado', (data) => {
-                console.log('👋 Usuario conectado:', data);
-                if (data.grupoId === grupoActual.id && data.email !== usuarioActual.email) {
-                    actualizarEstadoUsuario(data.email, true);
-                }
-            });
 
-            // Usuario se desconectó del grupo
-            socket.on('usuarioDesconectado', (data) => {
-                console.log('👋 Usuario desconectado:', data);
-                if (data.grupoId === grupoActual.id && data.email !== usuarioActual.email) {
-                    actualizarEstadoUsuario(data.email, false);
-                }
-            });
-
-            // Lista de usuarios online actualizada (no se muestra en sidebar, solo para logs)
+            // Lista de usuarios online actualizada (FUENTE DE VERDAD)
             socket.on('usuariosOnlineActualizados', (data) => {
                 console.log('📋 Lista de usuarios online actualizada:', data);
                 if (data.grupoId === grupoActual.id) {
                     // Limpiar y reconstruir desde el servidor (fuente de verdad)
                     usuariosOnline.clear();
+
                     // Validar que data.usuarios existe y es un array
                     if (Array.isArray(data.usuarios)) {
-                        data.usuarios.forEach(email => {
+                        data.usuarios.forEach(usuario => {
+                            // Soportar tanto objetos {email, username} como strings simples
+                            const email = typeof usuario === 'string' ? usuario : usuario.email;
                             usuariosOnline.add(email);
+
+                            // Si recibimos el username, actualizarlo en miembrosInfo
+                            if (typeof usuario === 'object' && usuario.username && !miembrosInfo.has(email)) {
+                                miembrosInfo.set(email, {
+                                    email: email,
+                                    username: usuario.username
+                                });
+                            }
                         });
                         console.log(`✅ ${usuariosOnline.size} usuarios online en el grupo`);
                     } else {
                         console.warn('⚠️ Lista de usuarios inválida recibida:', data);
                     }
+
+                    // Actualizar UI de miembros
+                    renderizarMiembros();
                 }
             });
         }
@@ -1770,18 +2088,6 @@
         }
 
         // Funciones auxiliares
-        function obtenerIniciales(nombre) {
-            if (!nombre) return '?';
-            return nombre.split(' ')
-                .map(n => n[0])
-                .join('')
-                .toUpperCase()
-                .substring(0, 2);
-        }
-
-        function obtenerInicialesDeNombre(nombre) {
-            return obtenerIniciales(nombre);
-        }
 
         function generarColorAvatar(email) {
             const colors = [

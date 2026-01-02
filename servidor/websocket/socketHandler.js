@@ -160,15 +160,18 @@ class SocketHandler {
             return;
         }
 
-        // Obtener lista única de emails (sin duplicados)
-        const listaUsuarios = Object.keys(this.usuariosOnlinePorGrupo[grupoId]);
+        // Obtener lista única de usuarios con sus datos (sin duplicados)
+        const listaUsuarios = Object.keys(this.usuariosOnlinePorGrupo[grupoId]).map(email => ({
+            email: email,
+            username: this.usuariosOnlinePorGrupo[grupoId][email].username
+        }));
 
         this.io.to(grupoId).emit('usuariosOnlineActualizados', {
             grupoId,
             usuarios: listaUsuarios
         });
 
-        console.log(`📡 Usuarios online en ${grupoId}:`, listaUsuarios.length, listaUsuarios);
+        console.log(`📡 Usuarios online en ${grupoId}:`, listaUsuarios.length);
     }
 
     /**
