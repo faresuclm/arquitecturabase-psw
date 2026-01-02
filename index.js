@@ -100,6 +100,8 @@ async function inicializarAplicacion() {
         console.log("   - MongoDB URL:", config.mongodb.url ? "✅ Cargado" : "❌ Falta");
         console.log("   - Session Keys:", config.server.sessionKeys.length, "claves");
         console.log("   - Google Client ID:", config.google.clientId ? "✅ Cargado" : "❌ Falta");
+        console.log("   - Google Callback URL:", config.google.callbackUrl || "❌ Falta");
+        console.log("   - Google Callback URI:", config.google.callbackUri || "❌ Falta");
 
         // ====== CONFIGURACIÓN DE SESIÓN (requiere config) ======
         app.use(
@@ -107,7 +109,7 @@ async function inicializarAplicacion() {
                 name: "Sistema",
                 keys: config.server.sessionKeys,
                 maxAge: 24 * 60 * 60 * 1000,
-                sameSite: 'lax',
+                sameSite: config.server.isProduction ? 'none' : 'lax',
                 httpOnly: true,
                 secure: config.server.isProduction,
                 signed: true

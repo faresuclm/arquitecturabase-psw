@@ -72,6 +72,8 @@ class SecretManager {
             'SESSION_KEY_2',
             'GCLIENT_ID',
             'GCLIENT_SECRET',
+            'GCALLBACK_URL',
+            'GCALLBACK_URI',
             'FIREBASE_SERVICE_ACCOUNT_JSON' // El contenido completo del JSON
         ];
 
