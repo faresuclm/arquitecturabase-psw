@@ -77,6 +77,33 @@ class RouterConfigurator {
             })
         );
 
+        // ====== RUTA DE GOOGLE ONE TAP ======
+        app.post("/auth/google/one-tap",
+            this.passport.authenticate("google-one-tap", {
+                failureRedirect: "/fallo",
+                session: true
+            }),
+            (req, res) => {
+                console.log('📍 En /auth/google/one-tap callback');
+                console.log('👤 req.user:', req.user ? 'Existe' : 'NO EXISTE');
+                console.log('🔑 req.isAuthenticated():', req.isAuthenticated ? req.isAuthenticated() : 'Método no disponible');
+
+                if (req.user) {
+                    console.log('✅ Usuario autenticado con One Tap, datos:', {
+                        emails: req.user.emails,
+                        displayName: req.user.displayName,
+                        id: req.user.id
+                    });
+                } else {
+                    console.error('❌ PROBLEMA: req.user es undefined/null después de authenticate (One Tap)');
+                }
+
+                // Marcar que viene de One Tap para la ruta /good
+                req.session.googleOrigin = 'onetap';
+                res.redirect("/good");
+            }
+        );
+
         app.get("/google/callback",
             this.passport.authenticate("google", {
                 failureRedirect: "/fallo",

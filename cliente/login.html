@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <style>
         :root {
@@ -508,6 +509,95 @@
     </div>
 </div>
 
+<script>
+    // Inicializar Google One Tap cuando se carga la página de login
+    fetch('/api/config')
+        .then(response => response.json())
+        .then(config => {
+            console.log('🔑 Configuración de Google cargada:', config);
+
+            // Esperar a que la librería de Google esté disponible
+            const initOneTap = () => {
+                if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                    console.log("🟢 Inicializando Google One Tap...");
+
+                    google.accounts.id.initialize({
+                        client_id: config.GCLIENT_ID,
+                        callback: handleCredentialResponse,
+                        auto_select: false,
+                        cancel_on_tap_outside: false
+                    });
+
+                    // Mostrar el prompt de One Tap
+                    google.accounts.id.prompt((notification) => {
+                        if (notification.isNotDisplayed()) {
+                            console.log("⚠️ One Tap no se mostró:", notification.getNotDisplayedReason());
+                        } else if (notification.isSkippedMoment()) {
+                            console.log("⏭️ One Tap omitido:", notification.getSkippedReason());
+                        } else {
+                            console.log("✅ One Tap mostrado correctamente");
+                        }
+                    });
+                } else {
+                    console.log("⚠️ Librería de Google no cargada aún, reintentando...");
+                    setTimeout(initOneTap, 100);
+                }
+            };
+
+            // Intentar inicializar después de un pequeño delay
+            setTimeout(initOneTap, 500);
+        })
+        .catch(err => console.error("❌ Error cargando config para OneTap:", err));
+
+    // Callback que se ejecuta cuando el usuario selecciona una cuenta en One Tap
+    function handleCredentialResponse(response) {
+        console.log("🎯 Credential recibido de Google One Tap");
+        console.log("📦 JWT Token:", response.credential ? "Recibido" : "No disponible");
+
+        // Mostrar indicador de carga
+        const loginForm = document.querySelector('.auth-container');
+        if (loginForm) {
+            loginForm.style.opacity = '0.6';
+            loginForm.style.pointerEvents = 'none';
+        }
+
+        // Enviar el credential al servidor
+        fetch('/auth/google/one-tap', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ credential: response.credential })
+        })
+        .then(res => {
+            console.log("📡 Respuesta del servidor:", res.status);
+            if (res.redirected) {
+                console.log("↪️ Redirigiendo a:", res.url);
+                window.location.href = res.url;
+            } else {
+                return res.json();
+            }
+        })
+        .then(data => {
+            if (data && data.error) {
+                console.error("❌ Error:", data.error);
+                alert("Error al autenticar con Google: " + data.error);
+                if (loginForm) {
+                    loginForm.style.opacity = '1';
+                    loginForm.style.pointerEvents = 'auto';
+                }
+            }
+        })
+        .catch(error => {
+            console.error("❌ Error al procesar One Tap:", error);
+            alert("Error al autenticar con Google");
+            if (loginForm) {
+                loginForm.style.opacity = '1';
+                loginForm.style.pointerEvents = 'auto';
+            }
+        });
+    }
+</script>
 
 </body>
 </html>
