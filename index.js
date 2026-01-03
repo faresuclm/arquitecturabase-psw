@@ -134,6 +134,25 @@ async function inicializarAplicacion() {
             response.send(contenido);
         });
 
+        // Rutas para páginas HTML con animaciones mejoradas
+        app.get("/cliente/grupos.html", function (request, response) {
+            var contenido = fs.readFileSync(__dirname + "/cliente/grupos.html");
+            response.setHeader("Content-type", "text/html");
+            response.send(contenido);
+        });
+
+        app.get("/cliente/chat.html", function (request, response) {
+            var contenido = fs.readFileSync(__dirname + "/cliente/chat.html");
+            response.setHeader("Content-type", "text/html");
+            response.send(contenido);
+        });
+
+        app.get("/cliente/ajustes.html", function (request, response) {
+            var contenido = fs.readFileSync(__dirname + "/cliente/ajustes.html");
+            response.setHeader("Content-type", "text/html");
+            response.send(contenido);
+        });
+
 
         // 1. Conectar a la base de datos e inicializar repositorios
         const dbInitializer = new DatabaseInitializer();

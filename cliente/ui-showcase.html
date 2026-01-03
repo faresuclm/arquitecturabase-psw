@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Showcase - esiiChat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/cliente/styles/animations.css">
+    <link rel="stylesheet" href="/cliente/styles/micro-interactions.css">
+    <script src="/cliente/ui-helpers.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInDown 0.6s ease;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+
+        .header p {
+            font-size: 18px;
+            color: #64748b;
+        }
+
+        .section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            animation: fadeInUp 0.6s ease;
+        }
+
+        .section:nth-child(2) { animation-delay: 0.1s; }
+        .section:nth-child(3) { animation-delay: 0.2s; }
+        .section:nth-child(4) { animation-delay: 0.3s; }
+
+        .section h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section h2 i {
+            color: #3b82f6;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .demo-card {
+            background: #f8fafc;
+            padding: 24px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+        }
+
+        .demo-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 12px;
+        }
+
+        .demo-card p {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 16px;
+        }
+
+        .btn-demo {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-demo::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn-demo:active::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-demo:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .animation-showcase {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .animation-demo {
+            padding: 12px 24px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .animation-demo:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .color-item {
+            text-align: center;
+        }
+
+        .color-box {
+            width: 100%;
+            height: 80px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .color-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .color-code {
+            font-size: 12px;
+            color: #64748b;
+            font-family: 'Courier New', monospace;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 24px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            padding: 24px;
+            border-radius: 16px;
+            color: white;
+            animation: scaleIn 0.5s ease;
+        }
+
+        .stat-number {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 UI Showcase</h1>
+            <p>Transformación profesional de esiiChat con animaciones y efectos modernos</p>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="section">
+            <h2><i class="fas fa-chart-line"></i> Estadísticas de Mejoras</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">50+</div>
+                    <div class="stat-label">Animaciones Nuevas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">3</div>
+                    <div class="stat-label">Archivos CSS Creados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Mejora Visual</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">Cambios en Backend</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paleta de Colores -->
+        <div class="section">
+            <h2><i class="fas fa-palette"></i> Paleta de Colores</h2>
+            <div class="color-palette">
+                <div class="color-item">
+                    <div class="color-box" style="background: #3b82f6;"></div>
+                    <div class="color-name">Primary</div>
+                    <div class="color-code">#3b82f6</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-box" style="background: #2563eb;"></div>
+                    <div class="color-name">Primary Dark</div>
+                    <div class="color-code">#2563eb</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-box" style="background: #10b981;"></div>
+                    <div class="color-name">Success</div>
+                    <div class="color-code">#10b981</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-box" style="background: #ef4444;"></div>
+                    <div class="color-name">Error</div>
+                    <div class="color-code">#ef4444</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-box" style="background: #f59e0b;"></div>
+                    <div class="color-name">Warning</div>
+                    <div class="color-code">#f59e0b</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Animaciones -->
+        <div class="section">
+            <h2><i class="fas fa-magic"></i> Animaciones Disponibles</h2>
+            <p>Haz click en las cajas para ver las animaciones en acción:</p>
+            <div class="animation-showcase">
+                <div class="animation-demo" onclick="animateThis(this, 'animate-fadeIn')">Fade In</div>
+                <div class="animation-demo" onclick="animateThis(this, 'animate-fadeInUp')">Fade In Up</div>
+                <div class="animation-demo" onclick="animateThis(this, 'animate-slideInLeft')">Slide In Left</div>
+                <div class="animation-demo" onclick="animateThis(this, 'animate-scaleIn')">Scale In</div>
+                <div class="animation-demo" onclick="animateThis(this, 'animate-bounce')">Bounce</div>
+                <div class="animation-demo" onclick="animateThis(this, 'animate-shake')">Shake</div>
+                <div class="animation-demo" onclick="animateThis(this, 'animate-wiggle')">Wiggle</div>
+                <div class="animation-demo" onclick="animateThis(this, 'animate-pulse')">Pulse</div>
+            </div>
+        </div>
+
+        <!-- Notificaciones Toast -->
+        <div class="section">
+            <h2><i class="fas fa-bell"></i> Sistema de Notificaciones Toast</h2>
+            <div class="demo-grid">
+                <div class="demo-card">
+                    <h3>Success Toast</h3>
+                    <p>Notificación de éxito con icono y colores verdes</p>
+                    <button class="btn-demo" onclick="showToast('success')">
+                        <i class="fas fa-check"></i> Probar Success
+                    </button>
+                </div>
+                <div class="demo-card">
+                    <h3>Error Toast</h3>
+                    <p>Notificación de error con icono y colores rojos</p>
+                    <button class="btn-demo" onclick="showToast('error')">
+                        <i class="fas fa-times"></i> Probar Error
+                    </button>
+                </div>
+                <div class="demo-card">
+                    <h3>Warning Toast</h3>
+                    <p>Notificación de advertencia con colores naranjas</p>
+                    <button class="btn-demo" onclick="showToast('warning')">
+                        <i class="fas fa-exclamation"></i> Probar Warning
+                    </button>
+                </div>
+                <div class="demo-card">
+                    <h3>Info Toast</h3>
+                    <p>Notificación informativa con colores azules</p>
+                    <button class="btn-demo" onclick="showToast('info')">
+                        <i class="fas fa-info"></i> Probar Info
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Efectos Hover -->
+        <div class="section">
+            <h2><i class="fas fa-hand-pointer"></i> Efectos Hover</h2>
+            <div class="demo-grid">
+                <div class="demo-card hover-lift">
+                    <h3>Hover Lift</h3>
+                    <p>Se eleva 4px al pasar el cursor</p>
+                </div>
+                <div class="demo-card hover-scale">
+                    <h3>Hover Scale</h3>
+                    <p>Aumenta de tamaño al pasar el cursor</p>
+                </div>
+                <div class="demo-card hover-glow">
+                    <h3>Hover Glow</h3>
+                    <p>Brilla con box-shadow al pasar el cursor</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Skeleton Loaders -->
+        <div class="section">
+            <h2><i class="fas fa-spinner"></i> Skeleton Loaders</h2>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div class="skeleton skeleton-title"></div>
+                <div class="skeleton skeleton-text"></div>
+                <div class="skeleton skeleton-text" style="width: 80%;"></div>
+                <div class="skeleton skeleton-text" style="width: 60%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function animateThis(element, animationClass) {
+            element.classList.add(animationClass);
+            setTimeout(() => {
+                element.classList.remove(animationClass);
+            }, 1000);
+        }
+
+        function showToast(type) {
+            const messages = {
+                success: {
+                    title: '¡Éxito!',
+                    message: 'La operación se completó correctamente'
+                },
+                error: {
+                    title: 'Error',
+                    message: 'Algo salió mal, por favor intenta de nuevo'
+                },
+                warning: {
+                    title: 'Advertencia',
+                    message: 'Ten cuidado con esta acción'
+                },
+                info: {
+                    title: 'Información',
+                    message: 'Este es un mensaje informativo importante'
+                }
+            };
+
+            const msg = messages[type];
+            window.toast[type](msg.title, msg.message);
+        }
+    </script>
+</body>
+</html>
+

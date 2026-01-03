@@ -1066,33 +1066,48 @@ function ControlWeb() {
     };
 
     this.mostrarMensajeExito = function (msg) {
-        $("#msg").removeClass("center-message");
-        $("#msg").html('<div class="alert alert-success alert-dismissible fade show" role="alert" style="box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3); font-size: 15px;">' +
-            '<strong>✓ Éxito:</strong> ' + msg +
-            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-            '<span aria-hidden="true">&times;</span>' +
-            '</button>' +
-            '</div>');
+        // Usar toast si está disponible, sino usar el sistema antiguo
+        if (typeof window.toast !== 'undefined') {
+            window.toast.success('¡Éxito!', msg, 5000);
+        } else {
+            $("#msg").removeClass("center-message");
+            $("#msg").html('<div class="alert alert-success alert-dismissible fade show animate-slideInDown" role="alert" style="box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3); font-size: 15px;">' +
+                '<strong>✓ Éxito:</strong> ' + msg +
+                '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+                '<span aria-hidden="true">&times;</span>' +
+                '</button>' +
+                '</div>');
+        }
     };
 
     this.mostrarMensajeError = function (msg) {
-        $("#msg").removeClass("center-message");
-        $("#msg").html('<div class="alert alert-danger alert-dismissible fade show" role="alert" style="box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3); font-size: 15px;">' +
-            '<strong>✗ Error:</strong> ' + msg +
-            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-            '<span aria-hidden="true">&times;</span>' +
-            '</button>' +
-            '</div>');
+        // Usar toast si está disponible, sino usar el sistema antiguo
+        if (typeof window.toast !== 'undefined') {
+            window.toast.error('Error', msg, 6000);
+        } else {
+            $("#msg").removeClass("center-message");
+            $("#msg").html('<div class="alert alert-danger alert-dismissible fade show animate-slideInDown" role="alert" style="box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3); font-size: 15px;">' +
+                '<strong>✗ Error:</strong> ' + msg +
+                '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+                '<span aria-hidden="true">&times;</span>' +
+                '</button>' +
+                '</div>');
+        }
     };
 
     this.mostrarMensajeInfo = function (msg) {
-        $("#msg").removeClass("center-message");
-        $("#msg").html('<div class="alert alert-info alert-dismissible fade show" role="alert" style="box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3); font-size: 15px;">' +
-            '<strong>ℹ Info:</strong> ' + msg +
-            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-            '<span aria-hidden="true">&times;</span>' +
-            '</button>' +
-            '</div>');
+        // Usar toast si está disponible, sino usar el sistema antiguo
+        if (typeof window.toast !== 'undefined') {
+            window.toast.info('Información', msg, 5000);
+        } else {
+            $("#msg").removeClass("center-message");
+            $("#msg").html('<div class="alert alert-info alert-dismissible fade show animate-slideInDown" role="alert" style="box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3); font-size: 15px;">' +
+                '<strong>ℹ Info:</strong> ' + msg +
+                '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+                '<span aria-hidden="true">&times;</span>' +
+                '</button>' +
+                '</div>');
+        }
     };
 
     this.salir = function () {
@@ -1488,18 +1503,12 @@ function ControlWeb() {
     };
 
     this.mostrarGrupos = function () {
-        console.log("🔄 Cargando vista de grupos...");
-        $("#mainContainer").removeClass("auth-container-wrapper");
-        $("#registro").html("").load("./cliente/grupos.html", function () {
-            console.log("✅ Vista de grupos cargada");
-        });
+        console.log("🔄 Redirigiendo a vista de grupos...");
+        window.location.href = '/cliente/grupos.html';
     };
 
     this.mostrarChat = function (grupoId, grupoNombre, usuariosActivos) {
-        console.log("🔄 Cargando chat del grupo:", grupoNombre);
-        $("#mainContainer").removeClass("auth-container-wrapper");
-        $("#registro").html("").load("./cliente/chat.html", function () {
-            console.log("✅ Chat cargado para grupo:", grupoNombre);
-        });
+        console.log("🔄 Redirigiendo a chat del grupo:", grupoNombre);
+        window.location.href = `/cliente/chat.html?grupoId=${grupoId}&grupoNombre=${encodeURIComponent(grupoNombre)}`;
     };
 }
