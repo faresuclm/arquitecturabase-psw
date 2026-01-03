@@ -284,22 +284,42 @@ class UsuarioController {
             const { password } = req.body;
             const email = req.user.email;
 
+            // Eliminar la cuenta del usuario
             const resultado = await this.usuarioService.eliminarCuenta(email, password);
 
-            // Cerrar sesión después de eliminar
-            req.logout((err) => {
-                if (err) {
-                    console.error("Error al hacer logout:", err);
-                }
-                res.clearCookie('connect.sid');
-                res.clearCookie('Sistema');
-                req.session = null;
+            // Limpiar cookies de sesión ANTES de enviar respuesta
+            res.clearCookie('connect.sid', { path: '/' });
+            res.clearCookie('Sistema', { path: '/' });
+            res.clearCookie('nick', { path: '/' });
+            res.clearCookie('userName', { path: '/' });
+            res.clearCookie('g_state0', { path: '/' });
+            res.clearCookie('g_csrf_token', { path: '/' });
 
-                res.json(resultado);
+            // Enviar respuesta inmediatamente
+            res.json(resultado);
+
+            // Cerrar sesión de forma asíncrona DESPUÉS de enviar respuesta
+            setImmediate(() => {
+                req.logout((err) => {
+                    if (err) {
+                        console.error("Error al hacer logout:", err);
+                    }
+
+                    // Destruir sesión
+                    if (req.session) {
+                        req.session.destroy((err) => {
+                            if (err) {
+                                console.error("Error al destruir sesión:", err);
+                            }
+                        });
+                    }
+
+                    console.log(`✅ Sesión cerrada para usuario eliminado: ${email}`);
+                });
             });
         } catch (error) {
             console.error("Error al eliminar cuenta:", error.message);
-            res.status(400).json({ success: false, error: error.message });
+            return res.status(400).json({ success: false, error: error.message });
         }
     }
 }

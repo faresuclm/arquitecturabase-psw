@@ -795,8 +795,14 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    alert('Tu cuenta ha sido eliminada. Serás redirigido a la página principal.');
-                    window.location.href = '/';
+                    // Limpiar localStorage y sessionStorage
+                    localStorage.clear();
+                    sessionStorage.clear();
+
+                    alert('Tu cuenta ha sido eliminada. Serás redirigido a la página de inicio de sesión.');
+
+                    // Redirigir inmediatamente (las cookies ya fueron limpiadas por el servidor)
+                    window.location.replace('/');
                 } else {
                     errorAlert.textContent = data.error || 'Error al eliminar cuenta';
                     errorAlert.style.display = 'block';
