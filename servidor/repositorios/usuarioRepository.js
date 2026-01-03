@@ -130,7 +130,8 @@ class UsuarioRepository {
                     };
                 }
             });
-            return mapa;
+            // Convertir el mapa a un array de usuarios
+            return Object.values(mapa);
         } catch (error) {
             console.error("Error al obtener info de usuarios:", error);
             return {};

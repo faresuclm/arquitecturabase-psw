@@ -1615,6 +1615,7 @@
             const offlineList = document.getElementById('offlineMembersList');
             const membersCountEl = document.getElementById('membersCount');
             const onlineCountEl = document.getElementById('membersOnlineCount');
+            const chatSubtituloEl = document.getElementById('chatSubtitulo');
 
             if (!onlineList || !offlineList) return;
 
@@ -1666,6 +1667,17 @@
                     <i class="fas fa-circle"></i>
                     ${miembrosOnline.length}
                 `;
+            }
+
+            // Actualizar subtítulo del chat con usuarios online
+            if (chatSubtituloEl) {
+                if (miembrosOnline.length === 0) {
+                    chatSubtituloEl.textContent = `${miembrosInfo.size} miembros • Nadie en línea`;
+                } else if (miembrosOnline.length === 1) {
+                    chatSubtituloEl.textContent = `${miembrosInfo.size} miembros • 1 en línea`;
+                } else {
+                    chatSubtituloEl.textContent = `${miembrosInfo.size} miembros • ${miembrosOnline.length} en línea`;
+                }
             }
 
             console.log(`📊 Miembros renderizados: ${miembrosOnline.length} online, ${miembrosOffline.length} offline`);
