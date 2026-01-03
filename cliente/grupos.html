@@ -1167,8 +1167,24 @@
                         } finally {
                             // SIEMPRE limpiar y redirigir, incluso si hay errores
                             console.log('🧹 Limpiando datos del cliente...');
+
+                            // Cancelar y deshabilitar Google One Tap para permitir re-login
+                            try {
+                                if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                                    console.log('🔄 Cancelando Google One Tap...');
+                                    google.accounts.id.cancel();
+                                    google.accounts.id.disableAutoSelect();
+                                    console.log('✅ Google One Tap cancelado y deshabilitado');
+                                }
+                            } catch (googleError) {
+                                console.warn('⚠️ Error al cancelar Google One Tap:', googleError);
+                            }
+
+                            // Limpiar cookies
                             document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
                             document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                            document.cookie = 'g_state0=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                            document.cookie = 'g_csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
                             localStorage.clear();
                             sessionStorage.clear();
 

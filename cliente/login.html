@@ -521,23 +521,38 @@
                 if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
                     console.log("🟢 Inicializando Google One Tap...");
 
+                    // Cancelar cualquier instancia previa para limpiar el estado
+                    try {
+                        google.accounts.id.cancel();
+                        console.log('🔄 Instancia previa de One Tap cancelada');
+                    } catch (e) {
+                        console.log('⚠️ No había instancia previa para cancelar');
+                    }
+
                     google.accounts.id.initialize({
                         client_id: config.GCLIENT_ID,
                         callback: handleCredentialResponse,
                         auto_select: false,
-                        cancel_on_tap_outside: false
+                        cancel_on_tap_outside: false,
+                        itp_support: true // Soporte para Intelligent Tracking Prevention
                     });
 
-                    // Mostrar el prompt de One Tap
-                    google.accounts.id.prompt((notification) => {
-                        if (notification.isNotDisplayed()) {
-                            console.log("⚠️ One Tap no se mostró:", notification.getNotDisplayedReason());
-                        } else if (notification.isSkippedMoment()) {
-                            console.log("⏭️ One Tap omitido:", notification.getSkippedReason());
-                        } else {
-                            console.log("✅ One Tap mostrado correctamente");
-                        }
-                    });
+                    // Mostrar el prompt de One Tap con un pequeño delay
+                    setTimeout(() => {
+                        google.accounts.id.prompt((notification) => {
+                            if (notification.isNotDisplayed()) {
+                                console.log("⚠️ One Tap no se mostró:", notification.getNotDisplayedReason());
+                                // Si fue porque el usuario cerró sesión recientemente, está bien
+                                if (notification.getNotDisplayedReason() === 'suppressed_by_user') {
+                                    console.log('ℹ️ Usuario puede hacer clic en el botón de Google para iniciar sesión');
+                                }
+                            } else if (notification.isSkippedMoment()) {
+                                console.log("⏭️ One Tap omitido:", notification.getSkippedReason());
+                            } else {
+                                console.log("✅ One Tap mostrado correctamente");
+                            }
+                        });
+                    }, 300); // Delay para asegurar que todo está limpio
                 } else {
                     console.log("⚠️ Librería de Google no cargada aún, reintentando...");
                     setTimeout(initOneTap, 100);

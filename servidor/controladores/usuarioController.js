@@ -190,11 +190,14 @@ class UsuarioController {
                 return res.status(500).json({ success: false, error: "Fallo al logout" });
             }
 
+            // Limpiar cookies de sesión y Google OAuth
             res.clearCookie('connect.sid');
             res.clearCookie('Sistema');
+            res.clearCookie('g_state0');
+            res.clearCookie('g_csrf_token');
             req.session = null;
 
-            res.json({ success: true, mensaje: "Sesión cerrada" });
+            res.json({ success: true, mensaje: "Sesión cerrada", googleLogout: true });
         });
     }
 

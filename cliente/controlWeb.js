@@ -4,19 +4,38 @@ function ControlWeb() {
     this.inicializarGoogleOneTap = function(clientId, callbackUri) {
         if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
             console.log("🟢 Inicializando Google One Tap...");
+
+            // Cancelar cualquier instancia previa para limpiar el estado
+            try {
+                google.accounts.id.cancel();
+                console.log('🔄 Instancia previa de One Tap cancelada');
+            } catch (e) {
+                console.log('⚠️ No había instancia previa para cancelar');
+            }
+
             google.accounts.id.initialize({
                 client_id: clientId,
                 login_uri: callbackUri, // POST automático al servidor al endpoint de callback
                 auto_select: false,
-                cancel_on_tap_outside: false
+                cancel_on_tap_outside: false,
+                itp_support: true // Soporte para Intelligent Tracking Prevention
             });
 
-            // Mostrar el prompt (el pop-up)
-            google.accounts.id.prompt((notification) => {
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                    console.log("One Tap status:", notification.getNotDisplayedReason());
-                }
-            });
+            // Mostrar el prompt (el pop-up) con un pequeño delay
+            setTimeout(() => {
+                google.accounts.id.prompt((notification) => {
+                    if (notification.isNotDisplayed()) {
+                        console.log("⚠️ One Tap no se mostró:", notification.getNotDisplayedReason());
+                        if (notification.getNotDisplayedReason() === 'suppressed_by_user') {
+                            console.log('ℹ️ Usuario puede hacer clic en el botón de Google para iniciar sesión');
+                        }
+                    } else if (notification.isSkippedMoment()) {
+                        console.log("⏭️ One Tap status:", notification.getSkippedReason());
+                    } else {
+                        console.log("✅ One Tap mostrado correctamente");
+                    }
+                });
+            }, 300); // Delay para asegurar que todo está limpio
         } else {
             console.log("⚠️ Librería de Google no cargada aún.");
         }

@@ -1873,55 +1873,71 @@
                                 socket.emit('salirGrupo', grupoActual.id);
                                 socket.disconnect();
                                 console.log('🔌 Socket desconectado');
-                            } catch (socketError) {
-                                console.warn('⚠️ Error al desconectar socket:', socketError);
-                            }
+                        } catch (socketError) {
+                            console.warn('⚠️ Error al desconectar socket:', socketError);
                         }
+                    }
 
+                    try {
+                        // Timeout de seguridad de 5 segundos
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+                        // Hacer petición al servidor para cerrar sesión
+                        const response = await fetch('/cerrarSesion', {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            signal: controller.signal
+                        });
+
+                        clearTimeout(timeoutId);
+
+                        // Intentar leer respuesta pero no bloquear si falla
                         try {
-                            // Timeout de seguridad de 5 segundos
-                            const controller = new AbortController();
-                            const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                            // Hacer petición al servidor para cerrar sesión
-                            const response = await fetch('/cerrarSesion', {
-                                method: 'POST',
-                                credentials: 'include',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                signal: controller.signal
-                            });
-
-                            clearTimeout(timeoutId);
-
-                            // Intentar leer respuesta pero no bloquear si falla
-                            try {
-                                if (response.ok) {
-                                    const data = await response.json();
-                                    console.log('✅ Sesión cerrada en servidor:', data);
-                                }
-                            } catch (jsonError) {
-                                console.log('⚠️ No se pudo parsear JSON, continuando...');
+                            if (response.ok) {
+                                const data = await response.json();
+                                console.log('✅ Sesión cerrada en servidor:', data);
                             }
-
-                        } catch (error) {
-                            if (error.name === 'AbortError') {
-                                console.warn('⚠️ Timeout al cerrar sesión, continuando de todas formas...');
-                            } else {
-                                console.error('❌ Error al cerrar sesión:', error);
-                            }
-                        } finally {
-                            // SIEMPRE limpiar y redirigir, incluso si hay errores
-                            console.log('🧹 Limpiando datos del cliente...');
-                            document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                            document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                            localStorage.clear();
-                            sessionStorage.clear();
-
-                            console.log('🔄 Redirigiendo a página de inicio...');
-                            window.location.replace('/');
+                        } catch (jsonError) {
+                            console.log('⚠️ No se pudo parsear JSON, continuando...');
                         }
+
+                    } catch (error) {
+                        if (error.name === 'AbortError') {
+                            console.warn('⚠️ Timeout al cerrar sesión, continuando de todas formas...');
+                        } else {
+                            console.error('❌ Error al cerrar sesión:', error);
+                        }
+                    } finally {
+                        // SIEMPRE limpiar y redirigir, incluso si hay errores
+                        console.log('🧹 Limpiando datos del cliente...');
+
+                        // Cancelar y deshabilitar Google One Tap para permitir re-login
+                        try {
+                            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                                console.log('🔄 Cancelando Google One Tap...');
+                                google.accounts.id.cancel();
+                                google.accounts.id.disableAutoSelect();
+                                console.log('✅ Google One Tap cancelado y deshabilitado');
+                            }
+                        } catch (googleError) {
+                            console.warn('⚠️ Error al cancelar Google One Tap:', googleError);
+                        }
+
+                        // Limpiar cookies
+                        document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                        document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                        document.cookie = 'g_state0=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                        document.cookie = 'g_csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                        localStorage.clear();
+                        sessionStorage.clear();
+
+                        console.log('🔄 Redirigiendo a página de inicio...');
+                        window.location.replace('/');
+                    }
                     }
                 });
             }
