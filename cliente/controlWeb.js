@@ -1065,49 +1065,96 @@ function ControlWeb() {
         );
     };
 
+    // --- SISTEMA DE MODALES UNIFICADO ---
+    
+    // Función interna para mostrar el modal genérico
+    const mostrarModalGenerico = function (tipo, titulo, msg) {
+        // Limpiar timeout de mensajes anteriores (si quedara algo)
+        $("#msg").empty(); 
+
+        let headerGradient, iconBg, iconColor, iconClass, btnGradient;
+
+        // Configurar estilos según el tipo
+        switch (tipo) {
+            case 'exito':
+                headerGradient = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'; // Azul (Marca)
+                iconBg = 'rgba(59, 130, 246, 0.1)';
+                iconColor = '#3b82f6';
+                iconClass = 'fa-check-circle';
+                btnGradient = headerGradient;
+                break;
+            case 'error':
+                headerGradient = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'; // Rojo
+                iconBg = 'rgba(239, 68, 68, 0.1)';
+                iconColor = '#ef4444';
+                iconClass = 'fa-times-circle';
+                btnGradient = headerGradient;
+                break;
+            case 'info':
+            default:
+                headerGradient = 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)'; // Azul Cielo
+                iconBg = 'rgba(14, 165, 233, 0.1)';
+                iconColor = '#0ea5e9';
+                iconClass = 'fa-info-circle';
+                btnGradient = headerGradient;
+                break;
+        }
+
+        // Aplicar estilos al DOM
+        $('#modalGlobalHeader').css('background', headerGradient);
+        $('#modalGlobalIconBg').css('background', iconBg);
+        $('#modalGlobalIcon').attr('class', 'fas ' + iconClass + ' fa-3x').css('color', iconColor);
+        $('#btnCerrarModalGlobal').css('background', btnGradient);
+
+        // Establecer textos
+        $('#modalMensajeGlobalLabel').html(`<i class="fas ${iconClass} mr-2"></i>${titulo}`);
+        $('#modalGlobalTitle').text(titulo);
+        $('#modalGlobalBody').html(msg); // Usar html() por si msg trae negritas
+
+        // Mostrar Modal
+        $('#modalMensajeGlobal').modal('show');
+    };
+
+    /**
+     * Muestra un modal de éxito (Azul/Marca)
+     * Reemplaza al antiguo toast.
+     */
     this.mostrarMensajeExito = function (msg) {
-        // Usar toast si está disponible, sino usar el sistema antiguo
-        if (typeof window.toast !== 'undefined') {
-            window.toast.success('¡Éxito!', msg, 5000);
-        } else {
-            $("#msg").removeClass("center-message");
-            $("#msg").html('<div class="alert alert-success alert-dismissible fade show animate-slideInDown" role="alert" style="box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3); font-size: 15px;">' +
-                '<strong>✓ Éxito:</strong> ' + msg +
-                '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-                '<span aria-hidden="true">&times;</span>' +
-                '</button>' +
-                '</div>');
-        }
+        mostrarModalGenerico('exito', '¡Excelente!', msg);
     };
 
+    /**
+     * Muestra un modal de error (Rojo)
+     * Reemplaza al antiguo toast.
+     */
     this.mostrarMensajeError = function (msg) {
-        // Usar toast si está disponible, sino usar el sistema antiguo
-        if (typeof window.toast !== 'undefined') {
-            window.toast.error('Error', msg, 6000);
-        } else {
-            $("#msg").removeClass("center-message");
-            $("#msg").html('<div class="alert alert-danger alert-dismissible fade show animate-slideInDown" role="alert" style="box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3); font-size: 15px;">' +
-                '<strong>✗ Error:</strong> ' + msg +
-                '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-                '<span aria-hidden="true">&times;</span>' +
-                '</button>' +
-                '</div>');
-        }
+        mostrarModalGenerico('error', '¡Ups, algo salió mal!', msg);
     };
 
+    /**
+     * Muestra un modal de información (Azul Cielo)
+     * Reemplaza al antiguo toast.
+     */
     this.mostrarMensajeInfo = function (msg) {
-        // Usar toast si está disponible, sino usar el sistema antiguo
-        if (typeof window.toast !== 'undefined') {
-            window.toast.info('Información', msg, 5000);
-        } else {
-            $("#msg").removeClass("center-message");
-            $("#msg").html('<div class="alert alert-info alert-dismissible fade show animate-slideInDown" role="alert" style="box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3); font-size: 15px;">' +
-                '<strong>ℹ Info:</strong> ' + msg +
-                '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-                '<span aria-hidden="true">&times;</span>' +
-                '</button>' +
-                '</div>');
-        }
+        mostrarModalGenerico('info', 'Información', msg);
+    };
+
+    this.mostrarModalVerificacion = function (email) {
+        // Limpiar cualquier mensaje previo
+        $("#msg").empty();
+        if (this.msgTimeout) clearTimeout(this.msgTimeout);
+
+        // Actualizar el email en el modal
+        $("#verificacionEmail").text(email);
+
+        // Configurar el botón de ir al login
+        $("#btnIrLogin").off('click').on('click', () => {
+            $('#modalVerificacion').modal('hide');
+            this.mostrarLogin();
+        });
+
+        // Mostrar el modal
+        $('#modalVerificacion').modal('show');
     };
 
     this.salir = function () {

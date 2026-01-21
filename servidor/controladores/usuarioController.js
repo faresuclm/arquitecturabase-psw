@@ -9,14 +9,14 @@ class UsuarioController {
 
     async registrar(req, res) {
         try {
-            const { email, username, password, provider, confirmada } = req.body;
+            const { email, username, password, provider } = req.body;
 
             const usuario = await this.usuarioService.registrarUsuario({
                 email,
                 username,
                 password,
                 provider,
-                confirmada
+                confirmada: false // Forzar siempre false en registro normal
             });
 
             res.status(201).json({

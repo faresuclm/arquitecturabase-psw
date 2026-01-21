@@ -18,13 +18,8 @@ function ClienteRest() {
                 if (data.nick != -1) {
                     console.log("Usuario " + data.nick + " ha sido registrado");
 
-                    // Mostrar mensaje de verificación de correo
-                    cw.mostrarMensajeInfo("¡Registro exitoso! Por favor, verifica tu correo electrónico (" + data.nick + ") para completar el registro. Te hemos enviado un enlace de verificación.");
-
-                    // Redirigir al login después de 4 segundos
-                    setTimeout(function() {
-                        cw.mostrarLogin();
-                    }, 4000);
+                    // Mostrar modal de verificación (persistente)
+                    cw.mostrarModalVerificacion(data.nick);
                 } else {
                     console.log("El email ya está registrado");
                     cw.mostrarMensajeError("El email ya está registrado. Por favor, utiliza otro email o inicia sesión.");
