@@ -76,7 +76,13 @@ class UsuarioService {
 
         // Enviar email de confirmación si no está confirmada
         if (!usuarioCreado.confirmada) {
-            correo.enviarEmail(usuarioCreado.email, usuarioCreado.key, "Confirmar cuenta");
+            try {
+                await correo.enviarEmail(usuarioCreado.email, usuarioCreado.key, "Confirmar cuenta");
+                console.log(`✉️ Email de confirmación enviado a ${usuarioCreado.email}`);
+            } catch (error) {
+                console.error("❌ Error al enviar email de confirmación:", error);
+                // No lanzamos error para no revertir el registro, pero lo logueamos
+            }
         }
 
         return new UsuarioResponseDTO(usuarioCreado);
@@ -159,7 +165,14 @@ class UsuarioService {
         usuario.resetTokenExpiry = Date.now() + 3600000; // 1 hora
 
         await this.usuarioRepository.actualizar(usuario);
-        correo.enviarEmailRecuperacion(email, resetToken);
+        
+        try {
+            await correo.enviarEmailRecuperacion(email, resetToken);
+            console.log(`✉️ Email de recuperación enviado a ${email}`);
+        } catch (error) {
+            console.error("❌ Error al enviar email de recuperación:", error);
+            throw new Error("Error al enviar el email de recuperación. Inténtalo más tarde.");
+        }
 
         return { success: true };
     }

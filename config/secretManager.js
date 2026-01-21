@@ -74,7 +74,11 @@ class SecretManager {
             'GCLIENT_SECRET',
             'GCALLBACK_URL',
             'GCALLBACK_URI',
-            'FIREBASE_SERVICE_ACCOUNT_JSON' // El contenido completo del JSON
+            'GCALLBACK_URI',
+            'FIREBASE_SERVICE_ACCOUNT_JSON', // El contenido completo del JSON
+            'BASE_URL',
+            'URL_DEPLOYMENT',
+            'APP_NAME'
         ];
 
         console.log('📥 Cargando secretos desde Secret Manager...');

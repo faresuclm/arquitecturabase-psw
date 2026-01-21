@@ -91,7 +91,7 @@ const config = {
             return process.env.APP_NAME || 'esiiChat';
         },
         get urlDeployment() {
-            return process.env.URL_DEPLOYMENT;
+            return process.env.URL_DEPLOYMENT || process.env.BASE_URL;
         }
     },
 

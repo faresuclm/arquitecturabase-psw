@@ -1,0 +1,366 @@
+@startuml Diagrama de Clases - Sistema de Chat
+
+' ==================== CAPA DE DTOs ====================
+package "DTOs (Data Transfer Objects)" {
+    class UsuarioDTO {
+        +email: string
+        +username: string
+        +confirmada: boolean
+        +provider: string
+        +fechaRegistro: Date
+        +photoURL: string
+        +constructor(data)
+    }
+
+    class UsuarioRegistroDTO {
+        +email: string
+        +username: string
+        +password: string
+        +confirmada: boolean
+        +provider: string
+        +constructor(data)
+        +validar(): {valido, errores}
+    }
+
+    class UsuarioLoginDTO {
+        +email: string
+        +password: string
+        +constructor(data)
+        +validar(): {valido, errores}
+    }
+
+    class UsuarioResponseDTO {
+        +email: string
+        +username: string
+        +confirmada: boolean
+        +provider: string
+        +fechaRegistro: Date
+        +photoURL: string
+        +constructor(usuario)
+    }
+
+    class GrupoDTO {
+        +id: string
+        +nombre: string
+        +descripcion: string
+        +miembros: string[]
+        +fechaCreacion: Date
+        +ultimoMensaje: object
+        +constructor(data)
+    }
+
+    class GrupoResponseDTO {
+        +id: string
+        +nombre: string
+        +descripcion: string
+        +miembros: string[]
+        +fechaCreacion: Date
+        +ultimoMensaje: object
+        +numeroMiembros: number
+        +constructor(grupo)
+    }
+
+    class GrupoCrearDTO {
+        +nombre: string
+        +descripcion: string
+        +constructor(data)
+        +validar(): {valido, errores}
+    }
+
+    class MensajeDTO {
+        +id: string
+        +grupoId: string
+        +autor: string
+        +nombreAutor: string
+        +contenido: string
+        +fecha: Date
+        +leido: boolean
+        +constructor(data)
+    }
+
+    class MensajeCrearDTO {
+        +grupoId: string
+        +autor: string
+        +nombreAutor: string
+        +contenido: string
+        +constructor(data)
+        +validar(): {valido, errores}
+    }
+
+    class MensajeResponseDTO {
+        +id: string
+        +grupoId: string
+        +autor: string
+        +nombreAutor: string
+        +contenido: string
+        +fecha: Date
+        +leido: boolean
+        +constructor(mensaje)
+    }
+}
+
+' ==================== CAPA DE REPOSITORIOS ====================
+package "Repositorios (Capa de Datos)" {
+    class UsuarioRepository {
+        -usuarios: Collection
+        +constructor(coleccionUsuarios)
+        +crearIndices(): Promise<boolean>
+        +buscarPorEmail(email): Promise<Usuario>
+        +buscarPorUsername(username): Promise<Usuario>
+        +buscarPorCriterio(criterio): Promise<Usuario>
+        +verificarUsernameDisponible(username): Promise<boolean>
+        +crear(usuario): Promise<Usuario>
+        +actualizar(usuario): Promise<Usuario>
+        +buscarOCrear(usuario): Promise<Usuario>
+        +obtenerInfoUsuarios(emails): Promise<Usuario[]>
+        +eliminar(email): Promise<boolean>
+    }
+
+    class GrupoRepository {
+        -grupos: Collection
+        +constructor(coleccionGrupos)
+        +crear(grupo): Promise<Grupo>
+        +obtenerTodos(): Promise<Grupo[]>
+        +obtenerPorId(grupoId): Promise<Grupo>
+        +actualizar(grupo): Promise<Grupo>
+        +agregarMiembro(grupoId, emailUsuario): Promise<Grupo>
+        +eliminarMiembro(grupoId, emailUsuario): Promise<Grupo>
+        +actualizarUltimoMensaje(grupoId, ultimoMensaje): Promise<boolean>
+        +limpiarDuplicados(): Promise<void>
+    }
+
+    class MensajeRepository {
+        -mensajes: Collection
+        +constructor(coleccionMensajes)
+        +crear(mensaje): Promise<Mensaje>
+        +obtenerPorGrupo(grupoId): Promise<Mensaje[]>
+        +marcarComoLeido(mensajeId): Promise<boolean>
+        +obtenerNoLeidos(grupoId, usuarioEmail): Promise<Mensaje[]>
+    }
+}
+
+' ==================== CAPA DE SERVICIOS ====================
+package "Servicios (Lógica de Negocio)" {
+    class UsuarioService {
+        -usuarioRepository: UsuarioRepository
+        -grupoService: GrupoService
+        +constructor(usuarioRepository, grupoService)
+        +registrarUsuario(datosRegistro): Promise<UsuarioResponseDTO>
+        +loginUsuario(credenciales): Promise<UsuarioResponseDTO>
+        +confirmarUsuario(email, key): Promise<UsuarioResponseDTO>
+        +verificarUsernameDisponible(username): Promise<boolean>
+        +solicitarRecuperacionPassword(email): Promise<void>
+        +restablecerPassword(email, token, nuevaPassword): Promise<void>
+        +eliminarCuenta(email): Promise<void>
+        +buscarPorEmail(email): Promise<UsuarioResponseDTO>
+        +buscarOCrear(datosUsuario): Promise<UsuarioResponseDTO>
+    }
+
+    class GrupoService {
+        -grupoRepository: GrupoRepository
+        +constructor(grupoRepository)
+        +inicializarGruposPredeterminados(): Promise<void>
+        +obtenerTodos(): Promise<GrupoResponseDTO[]>
+        +obtenerPorId(grupoId): Promise<GrupoResponseDTO>
+        +unirseAGrupo(grupoId, emailUsuario): Promise<GrupoResponseDTO>
+        +salirDeGrupo(grupoId, emailUsuario): Promise<GrupoResponseDTO>
+        +actualizarUltimoMensaje(grupoId, mensaje): Promise<void>
+        +eliminarUsuarioDeTodosLosGrupos(emailUsuario): Promise<void>
+        +limpiarDuplicados(): Promise<void>
+    }
+
+    class MensajeService {
+        -mensajeRepository: MensajeRepository
+        -grupoService: GrupoService
+        +constructor(mensajeRepository, grupoService)
+        +enviarMensaje(datosMensaje): Promise<MensajeResponseDTO>
+        +obtenerMensajesGrupo(grupoId): Promise<MensajeResponseDTO[]>
+        +marcarComoLeido(mensajeId): Promise<boolean>
+        +obtenerNoLeidos(grupoId, usuarioEmail): Promise<MensajeResponseDTO[]>
+    }
+}
+
+' ==================== CAPA DE CONTROLADORES ====================
+package "Controladores (Capa HTTP)" {
+    class UsuarioController {
+        -usuarioService: UsuarioService
+        +constructor(usuarioService)
+        +registrar(req, res): Promise<void>
+        +login(req, res, next): Promise<void>
+        +confirmar(req, res): Promise<void>
+        +verificarUsername(req, res): Promise<void>
+        +solicitarRecuperacion(req, res): Promise<void>
+        +restablecerPassword(req, res): Promise<void>
+        +eliminarCuenta(req, res): Promise<void>
+        +loginGoogle(req, res): Promise<void>
+        +callbackGoogle(req, res): Promise<void>
+        +verificarSesion(req, res): Promise<void>
+        +logout(req, res): Promise<void>
+    }
+
+    class GrupoController {
+        -grupoService: GrupoService
+        +constructor(grupoService)
+        +obtenerTodos(req, res): Promise<void>
+        +obtenerPorId(req, res): Promise<void>
+        +unirse(req, res): Promise<void>
+        +salir(req, res): Promise<void>
+        +obtenerGruposDeUsuario(req, res): Promise<void>
+    }
+
+    class MensajeController {
+        -mensajeService: MensajeService
+        +constructor(mensajeService)
+        +obtenerMensajesGrupo(req, res): Promise<void>
+        +enviarMensaje(mensaje, callback): Promise<void>
+    }
+}
+
+' ==================== CAPA DE ACCESO A DATOS ====================
+package "Acceso a Datos" {
+    class CAD {
+        -usuarios: Collection
+        -grupos: Collection
+        -mensajes: Collection
+        +conectar(callback): Promise<void>
+        +buscarUsuario(criterio, callback): void
+        +buscarUsuarioPorUsername(username, callback): void
+        +verificarUsernameDisponible(username, callback): void
+        +insertarUsuario(usuario, callback): void
+        +actualizarUsuario(usuario, callback): void
+        +buscarOCrearUsuario(usr, callback): void
+        +obtenerGrupos(callback): void
+        +insertarGrupo(grupo, callback): void
+        +buscarGrupo(criterio, callback): void
+        +actualizarGrupo(grupo, callback): void
+        +insertarMensaje(mensaje, callback): void
+        +obtenerMensajes(grupoId, callback): void
+    }
+}
+
+' ==================== MODELO LEGACY ====================
+package "Modelo (Legacy)" {
+    class Sistema {
+        -usuarios: object
+        -grupos: object
+        -cad: CAD
+        +constructor()
+        +verificarUsuarioGoogle(email, callback): void
+        +buscarUsuarioPorEmail(email, callback): void
+        +verificarUsernameDisponible(username, callback): void
+        +agregarUsuario(nick): object
+        +eliminarUsuario(nick): object
+        +registrarUsuario(obj, callback): void
+        +loginUsuario(email, password, callback): void
+        +confirmarUsuario(email, key, callback): void
+        +inicializarGruposPredeterminados(): void
+        +obtenerGrupos(callback): void
+        +obtenerMensajes(grupoId, callback): void
+        +unirseAGrupo(grupoId, email, callback): void
+        +salirDeGrupo(grupoId, email, callback): void
+    }
+
+    class Usuario {
+        -nombre: string
+        +constructor(nombre)
+    }
+}
+
+' ==================== WEBSOCKET ====================
+package "WebSocket" {
+    class SocketHandler {
+        -io: SocketIO
+        -mensajeController: MensajeController
+        -usuariosOnlinePorGrupo: object
+        +constructor(io, mensajeController)
+        +inicializar(): void
+        +manejarUnirseGrupo(socket, data): void
+        +manejarEnviarMensaje(socket, mensaje): void
+        +manejarEscribiendo(socket, data): void
+        +manejarDejoDeEscribir(socket, data): void
+        +manejarSalirGrupo(socket, grupoId): void
+        +manejarDesconexion(socket): void
+        -limpiarUsuarioOnline(socket): void
+        -emitirUsuariosOnline(grupoId): void
+    }
+}
+
+' ==================== RELACIONES ====================
+
+' Relaciones de Controladores con Servicios
+UsuarioController --> UsuarioService : usa
+GrupoController --> GrupoService : usa
+MensajeController --> MensajeService : usa
+
+' Relaciones de Servicios con Repositorios
+UsuarioService --> UsuarioRepository : usa
+UsuarioService --> GrupoService : usa
+GrupoService --> GrupoRepository : usa
+MensajeService --> MensajeRepository : usa
+MensajeService --> GrupoService : usa
+
+' Relaciones de Servicios con DTOs
+UsuarioService ..> UsuarioDTO : crea
+UsuarioService ..> UsuarioResponseDTO : retorna
+UsuarioService ..> UsuarioRegistroDTO : recibe
+UsuarioService ..> UsuarioLoginDTO : recibe
+
+GrupoService ..> GrupoDTO : crea
+GrupoService ..> GrupoResponseDTO : retorna
+GrupoService ..> GrupoCrearDTO : recibe
+
+MensajeService ..> MensajeDTO : crea
+MensajeService ..> MensajeResponseDTO : retorna
+MensajeService ..> MensajeCrearDTO : recibe
+
+' Relaciones de Repositorios con CAD (Legacy)
+UsuarioRepository ..> CAD : usa (opcional)
+GrupoRepository ..> CAD : usa (opcional)
+MensajeRepository ..> CAD : usa (opcional)
+
+' Relaciones del Sistema Legacy
+Sistema --> CAD : contiene
+Sistema --> Usuario : gestiona
+
+' Relaciones de WebSocket
+SocketHandler --> MensajeController : usa
+SocketHandler ..> MensajeDTO : maneja
+
+' Notas
+note right of UsuarioService
+  Contiene la lógica de negocio:
+  - Validación de datos
+  - Hash de contraseñas
+  - Envío de emails
+  - Gestión de tokens
+end note
+
+note right of GrupoService
+  Gestiona grupos de chat:
+  - Creación de grupos predeterminados
+  - Unirse/Salir de grupos
+  - Gestión de miembros
+end note
+
+note right of MensajeService
+  Gestiona mensajes:
+  - Envío de mensajes
+  - Historial de chat
+  - Estado de lectura
+end note
+
+note bottom of Sistema
+  Clase legacy que se está
+  migrando gradualmente a la
+  nueva arquitectura en capas
+end note
+
+note bottom of SocketHandler
+  Maneja comunicación en tiempo real:
+  - Eventos de Socket.IO
+  - Usuarios online por grupo
+  - Notificaciones de escritura
+end note
+
+@enduml
+
