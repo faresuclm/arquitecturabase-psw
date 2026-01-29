@@ -102,7 +102,8 @@ function Sistema() {
                     modelo.cad.insertarUsuario(obj, function (res) {
                         if (res && res.email) {
                             if (obj.confirmada === false) {
-                                correo.enviarEmail(obj.email, obj.key, "Confirmar cuenta");
+                                correo.enviarEmail(obj.email, obj.key, "Confirmar cuenta")
+                                    .catch(e => console.error("❌ Error email confirmación (legacy):", e));
                             }
                         }
                         callback(res);
@@ -160,7 +161,8 @@ function Sistema() {
             usr.resetTokenExpiry = Date.now() + 3600000;
 
             modelo.cad.actualizarUsuario(usr, function (res) {
-                correo.enviarEmailRecuperacion(email, resetToken);
+                correo.enviarEmailRecuperacion(email, resetToken)
+                    .catch(e => console.error("❌ Error email recuperación (legacy):", e));
                 callback({"success": true});
             });
         });

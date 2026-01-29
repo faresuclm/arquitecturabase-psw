@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grupos de Chat - esiiChat</title>
+    <title>Grupos de Chat</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Sistema de Animaciones Profesionales -->
+    <link rel="stylesheet" href="/cliente/styles/animations.css">
+    <link rel="stylesheet" href="/cliente/styles/micro-interactions.css">
+    <script src="/cliente/ui-helpers.js"></script>
     <style>
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -120,16 +124,34 @@
             border-radius: 16px;
             padding: 24px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
             border: 2px solid transparent;
             position: relative;
         }
 
         .grupo-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.15);
-            border-color: #2563eb;
+            transform: translateY(-8px);
+            box-shadow: 0 16px 32px rgba(37, 99, 235, 0.2);
+            border-color: #3b82f6;
+        }
+
+        .grupo-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 16px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(37, 99, 235, 0.05) 100%);
+            pointer-events: none;
+        }
+
+        .grupo-card:hover::before {
+            opacity: 1;
         }
 
         .grupo-header {
@@ -249,6 +271,47 @@
             font-size: 64px;
             color: #cbd5e1;
             margin-bottom: 16px;
+        }
+
+        #btnAjustes {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+        }
+
+        #btnAjustes:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        #btnAjustes:active {
+            transform: translateY(0);
+        }
+
+        #btnCerrarSesion {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
         }
 
         #btnCerrarSesion:hover {
@@ -488,20 +551,23 @@
                 font-size: 24px;
             }
 
-            #btnCerrarSesion {
-                padding: 10px 16px !important;
-                font-size: 14px !important;
-            }
-
             .header-section > div:first-child {
                 flex-direction: column;
-                gap: 16px;
+                gap: 12px;
                 align-items: stretch !important;
             }
 
+            .header-section > div:first-child > div:last-child {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            #btnAjustes,
             #btnCerrarSesion {
                 width: 100%;
                 justify-content: center;
+                padding: 10px 16px !important;
+                font-size: 14px !important;
             }
 
             .modal {
@@ -535,24 +601,16 @@
                     <i class="fas fa-users"></i>
                     EsiiChat - Grupos de Chat
                 </div>
-                <button id="btnCerrarSesion" style="
-                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-                    color: white;
-                    border: none;
-                    padding: 12px 24px;
-                    border-radius: 10px;
-                    font-weight: 600;
-                    font-size: 15px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    transition: all 0.3s ease;
-                    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
-                ">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Cerrar Sesión
-                </button>
+                <div style="display: flex; gap: 12px;">
+                    <button id="btnAjustes">
+                        <i class="fas fa-cog"></i>
+                        Ajustes
+                    </button>
+                    <button id="btnCerrarSesion">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Cerrar Sesión
+                    </button>
+                </div>
             </div>
             <div class="user-info" id="userInfo">Cargando...</div>
             <div class="chat-subtitle">Selecciona un grupo para unirte a la conversación</div>
@@ -1078,6 +1136,14 @@
         }
 
         function configurarEventos() {
+            // Botón ajustes
+            const btnAjustes = document.getElementById('btnAjustes');
+            if (btnAjustes) {
+                btnAjustes.addEventListener('click', function() {
+                    window.location.href = '/cliente/ajustes.html';
+                });
+            }
+
             // Botón cerrar sesión
             const btnCerrarSesion = document.getElementById('btnCerrarSesion');
             if (btnCerrarSesion) {
@@ -1123,8 +1189,24 @@
                         } finally {
                             // SIEMPRE limpiar y redirigir, incluso si hay errores
                             console.log('🧹 Limpiando datos del cliente...');
+
+                            // Cancelar y deshabilitar Google One Tap para permitir re-login
+                            try {
+                                if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                                    console.log('🔄 Cancelando Google One Tap...');
+                                    google.accounts.id.cancel();
+                                    google.accounts.id.disableAutoSelect();
+                                    console.log('✅ Google One Tap cancelado y deshabilitado');
+                                }
+                            } catch (googleError) {
+                                console.warn('⚠️ Error al cancelar Google One Tap:', googleError);
+                            }
+
+                            // Limpiar cookies
                             document.cookie = 'nick=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
                             document.cookie = 'userName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                            document.cookie = 'g_state0=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                            document.cookie = 'g_csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
                             localStorage.clear();
                             sessionStorage.clear();
 

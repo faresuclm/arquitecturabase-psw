@@ -1,0 +1,57 @@
+@startuml
+title Diagrama de Secuencia - Login de Usuario
+
+actor "Usuario" as User
+participant "Cliente (Web)" as Client
+participant "Router (Express)" as Router
+participant "UsuarioController" as Controller
+participant "UsuarioService" as Service
+participant "UsuarioRepository" as Repo
+participant "Base de Datos (Mongo)" as DB
+
+User -> Client: Introduce email y password
+Client -> Router: POST /loginUsuario {email, password}
+Router -> Controller: login(req, res)
+
+activate Controller
+    Controller -> Service: loginUsuario({email, password})
+    activate Service
+        
+        Service -> Repo: buscarPorEmail(email)
+        activate Repo
+            Repo -> DB: findOne({email})
+            activate DB
+            DB --> Repo: usuario (o null)
+            deactivate DB
+        Repo --> Service: usuario
+        deactivate Repo
+
+        alt Usuario no encontrado
+            Service --> Controller: Error("Usuario no encontrado")
+            Controller --> Client: 401 Unauthorized
+        else Usuario encontrado
+            
+            alt Es cuenta de Google y no tiene password
+                Service --> Controller: Error("Cuenta de Google")
+                Controller --> Client: 401 Unauthorized
+            else Cuenta no confirmada
+                Service --> Controller: Error("Cuenta no verificada")
+                Controller --> Client: 403 Forbidden
+            else Password Incorrecto (bcrypt)
+                Service --> Controller: Error("Contraseña incorrecta")
+                Controller --> Client: 401 Unauthorized
+            else Credenciales Válidas
+                Service --> Controller: UsuarioResponseDTO
+            end
+
+        end
+    deactivate Service
+
+    alt Login Exitoso
+        Controller -> Controller: req.logIn(usuario) (Passport)
+        Controller --> Client: 200 OK {nick, username}
+        Client -> User: Redirige a Dashboard
+    end
+deactivate Controller
+
+@enduml

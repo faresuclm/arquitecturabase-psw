@@ -1,20 +1,30 @@
 const nodemailer = require('nodemailer');
 const config = require('../config/config');
-const url = config.app.urlDeployment;
-const appName = config.app.name;
-//const url="tu-url-de-despliegue";
-const transporter = nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    secure: false, // true para 465, false para otros puertos
-    auth: {
-        user: config.email.user,
-        pass: config.email.password,
+// La inicialización se hace lazy para asegurar que config ya tiene los secretos cargados
+let transporter = null;
+
+function getTransporter() {
+    if (!transporter) {
+        transporter = nodemailer.createTransport({
+            host: 'smtp-relay.brevo.com',
+            port: 587,
+            secure: false, // true para 465, false para otros puertos
+            auth: {
+                user: config.email.user,
+                pass: config.email.password,
+            }
+        });
     }
-});
+    return transporter;
+}
 //send();
 module.exports.enviarEmail = async function (direccion, key, men) {
-    const result = await transporter.sendMail({
+    let url = config.app.urlDeployment;
+    if (url && !url.endsWith('/')) {
+        url += '/';
+    }
+    const appName = config.app.name;
+    const result = await getTransporter().sendMail({
         from: config.email.from,
         to: direccion,
         subject: men,
@@ -48,7 +58,12 @@ module.exports.enviarEmail = async function (direccion, key, men) {
 }
 
 module.exports.enviarEmailRecuperacion = async function (direccion, token) {
-    const result = await transporter.sendMail({
+    let url = config.app.urlDeployment;
+    if (url && !url.endsWith('/')) {
+        url += '/';
+    }
+    const appName = config.app.name;
+    const result = await getTransporter().sendMail({
         from: config.email.from,
         to: direccion,
         subject: 'Recuperación de contraseña - ' + appName,

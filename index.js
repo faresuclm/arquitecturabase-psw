@@ -1,15 +1,28 @@
-const config = require("./config/config");
+// === INICIALIZACIÓN DE SECRET MANAGER ===
+// DEBE ser lo primero para cargar secretos antes de cualquier otra configuración
+const { initializeSecretManager } = require("./config/secretManager");
+
 const bodyParser = require("body-parser");
 const fs = require("fs");
 const express = require("express");
 const cookieSession = require("cookie-session");
 const passport = require("passport");
-const modelo = require("./servidor/modelo.js");
 
 // === IMPORTS DE SEGURIDAD ===
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
+
+// === IMPORTS DE ARQUITECTURA DESACOPLADA ===
+const DatabaseInitializer = require("./servidor/databaseInitializer");
+const UsuarioService = require("./servidor/servicios/usuarioService");
+const GrupoService = require("./servidor/servicios/grupoService");
+const MensajeService = require("./servidor/servicios/mensajeService");
+const UsuarioController = require("./servidor/controladores/usuarioController");
+const GrupoController = require("./servidor/controladores/grupoController");
+const MensajeController = require("./servidor/controladores/mensajeController");
+const RouterConfigurator = require("./servidor/routerConfigurator");
+const SocketHandler = require("./servidor/websocket/socketHandler");
 
 const app = express();
 
@@ -18,17 +31,25 @@ app.set('trust proxy', 1);
 
 const http = require("http");
 const server = http.createServer(app);
-const {Server} = require("socket.io");
+const { Server } = require("socket.io");
 const io = new Server(server);
-const PORT = config.server.port;
 
 // Importar configuración de Passport
 const requirePassportSetup = require("./servidor/passport-setup");
 
-let sistema = new modelo.Sistema();
+// Variables globales para servicios y controladores
+let usuarioService;
+let grupoService;
+let mensajeService;
+let usuarioController;
+let grupoController;
+let mensajeController;
+let socketHandler;
+let config; // Se inicializará después de cargar secretos
+let PORT;
 
 // ====== MIDDLEWARES DE SEGURIDAD ======
-app.use(helmet({contentSecurityPolicy: false}));
+app.use(helmet({ contentSecurityPolicy: false }));
 
 app.use((req, res, next) => {
     Object.defineProperty(req, 'query', {
@@ -45,7 +66,7 @@ app.use(mongoSanitize());
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 20,
-    message: {error: "Demasiados intentos, por favor intenta más tarde."},
+    message: { error: "Demasiados intentos, por favor intenta más tarde." },
     standardHeaders: true,
     legacyHeaders: false,
 });
@@ -57,317 +78,158 @@ app.use("/solicitarRecuperacionPassword", authLimiter);
 
 // ====== MIDDLEWARE GENERAL ======
 app.use(express.static(__dirname + "/"));
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// ====== CONFIGURACIÓN DE SESIÓN ======
-app.use(
-    cookieSession({
-        name: "Sistema",
-        keys: config.server.sessionKeys,
-        maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: config.server.isProduction,
-        signed: true
-    })
-);
 
-// ====== INICIALIZAR PASSPORT ======
-app.use(passport.initialize());
-app.use(passport.session());
+// ====== INICIALIZACIÓN DE LA APLICACIÓN ======
+async function inicializarAplicacion() {
+    try {
+        console.log("🚀 Iniciando aplicación con arquitectura desacoplada...");
 
-requirePassportSetup(passport, sistema);
+        // 0. Inicializar Secret Manager (carga secretos desde GCP en producción)
+        await initializeSecretManager();
+        console.log("✅ Secret Manager inicializado");
 
-// ====== MIDDLEWARE DE AUTENTICACIÓN ======
-const haIniciado = function (request, response, next) {
-    if (request.isAuthenticated()) {
-        next();
-    } else {
-        response.redirect("/");
-    }
-};
+        // Ahora podemos cargar config de forma segura
+        config = require("./config/config");
+        PORT = config.server.port;
 
-// ====== RUTAS GET ======
+        // Debug: Verificar que los secretos se cargaron
+        console.log("🔍 Verificando configuración:");
+        console.log("   - MongoDB URL:", config.mongodb.url ? "✅ Cargado" : "❌ Falta");
+        console.log("   - Session Keys:", config.server.sessionKeys.length, "claves");
+        console.log("   - Google Client ID:", config.google.clientId ? "✅ Cargado" : "❌ Falta");
+        console.log("   - Google Callback URL:", config.google.callbackUrl || "❌ Falta");
+        console.log("   - Google Callback URI:", config.google.callbackUri || "❌ Falta");
 
-app.get("/fallo", function (request, response) {
-    console.error("❌ Fallo en autenticación");
-    response.redirect("/?error=auth_failed&message=Error%20de%20autenticaci%C3%B3n");
-});
+        // ====== CONFIGURACIÓN DE SESIÓN (requiere config) ======
+        app.use(
+            cookieSession({
+                name: "Sistema",
+                keys: config.server.sessionKeys,
+                maxAge: 24 * 60 * 60 * 1000,
+                sameSite: config.server.isProduction ? 'none' : 'lax',
+                httpOnly: true,
+                secure: config.server.isProduction,
+                signed: true
+            })
+        );
 
-app.get("/api/config", function (request, response) {
-    response.json({
-        GCLIENT_ID: config.google.clientId,
-        GCALLBACK_URI: config.google.callbackUri
-    });
-});
+        // ====== INICIALIZAR PASSPORT ======
+        app.use(passport.initialize());
+        app.use(passport.session());
 
-app.get("/", function (request, response) {
-    var contenido = fs.readFileSync(__dirname + "/cliente/index.html");
-    response.setHeader("Content-type", "text/html");
-    response.send(contenido);
-});
-
-// ====== RUTAS DE GOOGLE OAUTH ======
-
-// Ruta para LOGIN con Google
-app.get("/auth/google/login",
-    function (req, res, next) {
-        req.session.googleOrigin = 'login';
-        next();
-    },
-    passport.authenticate("google", {scope: ["profile", "email"], prompt: "select_account"})
-);
-
-// Ruta para REGISTRO con Google
-app.get("/auth/google/registro",
-    function (req, res, next) {
-        req.session.googleOrigin = 'registro';
-        next();
-    },
-    passport.authenticate("google", {scope: ["profile", "email"], prompt: "select_account"})
-);
-
-// CALLBACK de Google OAuth
-app.get("/google/callback",
-    passport.authenticate("google", {failureRedirect: "/fallo", session: true}),
-    function (req, res) {
-        res.redirect("/good");
-    }
-);
-
-// Ruta /good (Lógica inteligente post-autenticación)
-app.get("/good", function (request, response) {
-    if (!request.user || !request.user.emails) {
-        return response.redirect("/?error=auth_failed");
-    }
-
-    let email = request.user.emails[0].value;
-    // let origin = request.session.googleOrigin || 'login'; // Ya no es estricto, usamos lógica inteligente
-
-    sistema.verificarUsuarioGoogle(email, function (existeUsuario) {
-        if (existeUsuario) {
-            // == CASO 1: EL USUARIO YA EXISTE ==
-            // Iniciar sesión automáticamente (Login directo)
-            request.logIn(existeUsuario, function (err) {
-                if (err) return response.redirect("/?error=session_error");
-                response.cookie("nick", existeUsuario.email);
-                response.cookie("userName", existeUsuario.username || email.split('@')[0]);
-                // Redirigir al home logueado
-                response.redirect("/?google=login_success");
+        // ====== RUTAS ESTÁTICAS (requieren config) ======
+        app.get("/api/config", function (request, response) {
+            response.json({
+                GCLIENT_ID: config.google.clientId,
+                GCALLBACK_URI: config.google.callbackUri
             });
-
-        } else {
-            // == CASO 2: EL USUARIO NO EXISTE ==
-            // Asumimos que quiere registrarse.
-            // Guardamos datos temporales
-            request.session.googleUserData = {
-                email: email,
-                confirmada: true,
-                provider: 'google'
-            };
-
-            // Redirigimos al Login pero forzamos la apertura del modal de contraseña
-            response.redirect("/?view=login&modal=google_complete_registration&email=" + encodeURIComponent(email));
-        }
-    });
-});
-
-app.get("/ok", function (request, response) {
-    if (request.isAuthenticated() && request.user) {
-        response.send({
-            nick: request.user.email,
-            username: request.user.username || request.user.email.split('@')[0]
         });
-    } else {
-        response.status(401).send({error: "No autenticado"});
-    }
-});
 
-app.get("/confirmarUsuario/:email/:key", function (request, response) {
-    let email = request.params.email;
-    let key = request.params.key;
-    sistema.confirmarUsuario({"email": email, "key": key}, function (usr) {
-        if (usr.email != -1) {
-            response.redirect('/?verificado=true&email=' + encodeURIComponent(email));
-        } else {
-            response.redirect('/?verificado=false');
-        }
-    });
-});
-
-app.get("/restablecerPassword/:email/:token", function (request, response) {
-    let email = request.params.email;
-    let token = request.params.token;
-    response.redirect('/?resetPassword=true&email=' + encodeURIComponent(email) + '&token=' + encodeURIComponent(token));
-});
-
-// ====== RUTAS POST ======
-
-app.post("/registrarUsuario", function (request, response) {
-    const {email, password, username} = request.body;
-    sistema.registrarUsuario(request.body, function (res) {
-        if (res.email === -1) {
-            return response.status(409).send({nick: -1, error: res.error || "Error al registrar"});
-        }
-        response.send({"nick": res.email});
-    });
-});
-
-app.post('/loginUsuario', function (request, response, next) {
-    const {email, password} = request.body;
-    if (!email || !password) return response.status(400).send({nick: -1, error: "Faltan datos"});
-
-    passport.authenticate('local', function (err, user, info) {
-        if (err) return response.status(500).send({nick: -1, error: "Error de servidor"});
-        if (!user) return response.status(401).send({nick: -1, error: info ? info.message : "Credenciales inválidas"});
-
-        request.logIn(user, function (err) {
-            if (err) return response.status(500).send({nick: -1, error: "Error de sesión"});
-            return response.send({"nick": user.email, "username": user.username});
+        app.get("/", function (request, response) {
+            var contenido = fs.readFileSync(__dirname + "/cliente/index.html");
+            response.setHeader("Content-type", "text/html");
+            response.send(contenido);
         });
-    })(request, response, next);
-});
 
-app.post("/cerrarSesion", function (request, response) {
-    if (!request.user) return response.json({success: true, mensaje: "No había sesión"});
-
-    let email = request.user.email;
-    request.logout(function (err) {
-        if (err) return response.status(500).json({success: false, error: "Fallo al logout"});
-
-        response.clearCookie('connect.sid');
-        response.clearCookie('Sistema');
-        try {
-            sistema.eliminarUsuario(email);
-        } catch (e) {
-        }
-
-        request.session = null;
-        response.json({success: true, mensaje: "Sesión cerrada"});
-    });
-});
-
-app.post("/completarRegistroGoogle", function (request, response) {
-    const {password, username} = request.body;
-    if (!request.session.googleUserData) return response.status(400).send({
-        success: false,
-        error: "Sin datos de Google"
-    });
-
-    const googleData = request.session.googleUserData;
-    const nuevoUsuario = {
-        email: googleData.email,
-        password: password,
-        username: username,
-        confirmada: true,
-        provider: 'google',
-        fechaRegistro: new Date()
-    };
-
-    sistema.registrarUsuario(nuevoUsuario, function (res) {
-        if (res.email === -1) return response.status(500).send({success: false, error: res.error});
-
-        delete request.session.googleUserData;
-
-        request.logIn(nuevoUsuario, function (err) {
-            response.json({success: true, email: res.email, username: username});
+        // Rutas para páginas HTML con animaciones mejoradas
+        app.get("/cliente/grupos.html", function (request, response) {
+            var contenido = fs.readFileSync(__dirname + "/cliente/grupos.html");
+            response.setHeader("Content-type", "text/html");
+            response.send(contenido);
         });
-    });
-});
 
-app.post("/solicitarRecuperacionPassword", function (request, response) {
-    const {email} = request.body;
-    if (!email) return response.status(400).send({success: false});
-    sistema.solicitarRecuperacionPassword(email, function (res) {
-        if (!res.success) return response.status(404).send(res);
-        response.send(res);
-    });
-});
+        app.get("/cliente/chat.html", function (request, response) {
+            var contenido = fs.readFileSync(__dirname + "/cliente/chat.html");
+            response.setHeader("Content-type", "text/html");
+            response.send(contenido);
+        });
 
-app.post("/restablecerPassword", function (request, response) {
-    const {email, token, newPassword} = request.body;
-    sistema.restablecerPassword(email, token, newPassword, function (res) {
-        if (!res.success) return response.status(400).send(res);
-        response.send(res);
-    });
-});
+        app.get("/cliente/ajustes.html", function (request, response) {
+            var contenido = fs.readFileSync(__dirname + "/cliente/ajustes.html");
+            response.setHeader("Content-type", "text/html");
+            response.send(contenido);
+        });
 
-// ====== RUTAS DE GRUPOS Y API ======
-app.get("/api/grupos", haIniciado, (req, res) => sistema.obtenerGrupos(grupos => res.json(grupos)));
-app.get("/api/grupos/:grupoId", haIniciado, (req, res) => sistema.obtenerGrupo(req.params.grupoId, g => g ? res.json(g) : res.status(404).json({error: "404"})));
-app.post("/api/grupos/:grupoId/unirse", haIniciado, (req, res) => sistema.unirseAGrupo(req.params.grupoId, req.user.email, g => res.json({
-    success: !!g,
-    grupo: g
-})));
-app.post("/api/grupos/:grupoId/salir", haIniciado, (req, res) => sistema.salirDeGrupo(req.params.grupoId, req.user.email, g => res.json({
-    success: !!g,
-    grupo: g
-})));
-app.get("/api/grupos/:grupoId/mensajes", haIniciado, (req, res) => sistema.obtenerMensajes(req.params.grupoId, m => res.json(m)));
-app.post("/api/usuarios/info", haIniciado, (req, res) => sistema.obtenerInfoUsuarios(req.body.emails || [], u => res.json(u)));
-app.get("/verificarUsername/:username", function (req, res) {
-    const username = req.params.username;
-    sistema.verificarUsernameDisponible(username, function (disponible) {
-        res.json({disponible: disponible});
-    });
-});
 
-// ====== SOCKET.IO ======
-const usuariosOnlinePorGrupo = {};
+        // 1. Conectar a la base de datos e inicializar repositorios
+        const dbInitializer = new DatabaseInitializer();
+        const { usuarioRepository, grupoRepository, mensajeRepository } = await dbInitializer.conectar();
 
-io.on('connection', (socket) => {
-    socket.on('unirseGrupo', (data) => {
-        const grupoId = data.grupoId || data;
-        const usuarioEmail = data.usuarioEmail;
-        const usuarioUsername = data.usuarioUsername;
+        // 2. Crear servicios (lógica de negocio)
+        // Crear grupoService primero
+        grupoService = new GrupoService(grupoRepository);
 
-        socket.join(grupoId);
-        socket.grupoId = grupoId;
-        socket.usuarioEmail = usuarioEmail;
-        socket.usuarioUsername = usuarioUsername;
+        // Crear usuarioService con referencia a grupoService para eliminación en cascada
+        usuarioService = new UsuarioService(usuarioRepository, grupoService);
 
-        if (!usuariosOnlinePorGrupo[grupoId]) usuariosOnlinePorGrupo[grupoId] = {};
+        mensajeService = new MensajeService(mensajeRepository, grupoService);
 
-        for (const sId in usuariosOnlinePorGrupo[grupoId]) {
-            if (usuariosOnlinePorGrupo[grupoId][sId].email === usuarioEmail && sId !== socket.id) {
-                delete usuariosOnlinePorGrupo[grupoId][sId];
+        // 3. Inicializar grupos predeterminados
+        await grupoService.inicializarGruposPredeterminados();
+
+        // 4. Crear controladores (capa de presentación)
+        usuarioController = new UsuarioController(usuarioService);
+        grupoController = new GrupoController(grupoService);
+        mensajeController = new MensajeController(mensajeService);
+
+
+        // 5. Configurar Passport con el servicio de usuario
+        const sistemaAdaptado = {
+            buscarUsuarioPorEmail: async (email, callback) => {
+                try {
+                    const usuario = await usuarioService.buscarPorEmail(email);
+                    callback(usuario);
+                } catch (error) {
+                    callback(null);
+                }
+            },
+            verificarUsuarioGoogle: async (email, callback) => {
+                try {
+                    const usuario = await usuarioService.verificarUsuarioGoogle(email);
+                    callback(usuario);
+                } catch (error) {
+                    callback(null);
+                }
+            },
+            loginUsuario: (obj, callback) => {
+                usuarioService.loginUsuario(obj)
+                    .then(usuario => callback(usuario))
+                    .catch(error => callback({ email: -1, error: error.message }));
             }
-        }
+        };
 
-        usuariosOnlinePorGrupo[grupoId][socket.id] = {email: usuarioEmail, username: usuarioUsername};
+        requirePassportSetup(passport, sistemaAdaptado);
 
-        const lista = Array.from(new Set(Object.values(usuariosOnlinePorGrupo[grupoId]).map(u => u.email)));
-        io.to(grupoId).emit('usuariosOnlineActualizados', {grupoId, usuarios: lista});
-    });
+        // 6. Configurar rutas
+        const routerConfigurator = new RouterConfigurator(
+            usuarioController,
+            grupoController,
+            mensajeController,
+            passport
+        );
+        routerConfigurator.configurar(app);
 
-    socket.on('enviarMensaje', (mensaje) => {
-        sistema.enviarMensaje(mensaje, (msg) => {
-            if (msg && msg.id !== -1) io.to(mensaje.grupoId).emit('nuevoMensaje', msg);
+
+        // 7. Configurar Socket.IO
+        socketHandler = new SocketHandler(io, mensajeController);
+        socketHandler.inicializar();
+
+        // 8. Iniciar servidor
+        server.listen(PORT, "0.0.0.0", () => {
+            console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
+            console.log(`🔒 Modo Producción: ${config.server.isProduction ? 'SÍ' : 'NO'}`);
+            console.log("✅ Arquitectura desacoplada cargada exitosamente");
         });
-    });
 
-    socket.on('escribiendo', (data) => socket.to(data.grupoId).emit('usuarioEscribiendo', data));
-    socket.on('dejoDeEscribir', (data) => socket.to(data.grupoId).emit('usuarioDejoDeEscribir', data));
+    } catch (error) {
+        console.error("❌ Error al inicializar la aplicación:", error);
+        process.exit(1);
+    }
+}
 
-    const desconectar = () => {
-        const gId = socket.grupoId;
-        if (gId && usuariosOnlinePorGrupo[gId] && usuariosOnlinePorGrupo[gId][socket.id]) {
-            delete usuariosOnlinePorGrupo[gId][socket.id];
-            const lista = Array.from(new Set(Object.values(usuariosOnlinePorGrupo[gId]).map(u => u.email)));
-            io.to(gId).emit('usuariosOnlineActualizados', {grupoId: gId, usuarios: lista});
-            if (Object.keys(usuariosOnlinePorGrupo[gId]).length === 0) delete usuariosOnlinePorGrupo[gId];
-        }
-    };
+// Iniciar la aplicación
+inicializarAplicacion();
 
-    socket.on('salirGrupo', (gId) => {
-        socket.leave(gId);
-        desconectar();
-    });
-    socket.on('disconnect', desconectar);
-});
-
-server.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
-    console.log(`🔒 Modo Producción: ${config.server.isProduction ? 'SÍ' : 'NO'}`);
-});

@@ -4,19 +4,38 @@ function ControlWeb() {
     this.inicializarGoogleOneTap = function(clientId, callbackUri) {
         if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
             console.log("🟢 Inicializando Google One Tap...");
+
+            // Cancelar cualquier instancia previa para limpiar el estado
+            try {
+                google.accounts.id.cancel();
+                console.log('🔄 Instancia previa de One Tap cancelada');
+            } catch (e) {
+                console.log('⚠️ No había instancia previa para cancelar');
+            }
+
             google.accounts.id.initialize({
                 client_id: clientId,
                 login_uri: callbackUri, // POST automático al servidor al endpoint de callback
                 auto_select: false,
-                cancel_on_tap_outside: false
+                cancel_on_tap_outside: false,
+                itp_support: true // Soporte para Intelligent Tracking Prevention
             });
 
-            // Mostrar el prompt (el pop-up)
-            google.accounts.id.prompt((notification) => {
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                    console.log("One Tap status:", notification.getNotDisplayedReason());
-                }
-            });
+            // Mostrar el prompt (el pop-up) con un pequeño delay
+            setTimeout(() => {
+                google.accounts.id.prompt((notification) => {
+                    if (notification.isNotDisplayed()) {
+                        console.log("⚠️ One Tap no se mostró:", notification.getNotDisplayedReason());
+                        if (notification.getNotDisplayedReason() === 'suppressed_by_user') {
+                            console.log('ℹ️ Usuario puede hacer clic en el botón de Google para iniciar sesión');
+                        }
+                    } else if (notification.isSkippedMoment()) {
+                        console.log("⏭️ One Tap status:", notification.getSkippedReason());
+                    } else {
+                        console.log("✅ One Tap mostrado correctamente");
+                    }
+                });
+            }, 300); // Delay para asegurar que todo está limpio
         } else {
             console.log("⚠️ Librería de Google no cargada aún.");
         }
@@ -177,11 +196,44 @@ function ControlWeb() {
                 cw.mostrarLogin();
             });
 
-            // Botón Google REGISTRO - Apunta a la ruta de Registro explícita
-            $("#btnGoogleRegistro").attr("href", "/auth/google/registro");
-            $("#btnGoogleRegistro").on("click", function (e) {
-                // Dejar que el enlace funcione normalmente
-            });
+            // Botón Google REGISTRO - Configurar click handler para redirigir
+            // Esperar a que el botón exista en el DOM
+            setTimeout(function() {
+                const btnGoogleRegistro = $("#btnGoogleRegistro");
+                if (btnGoogleRegistro.length) {
+                    // Eliminar handlers previos para evitar duplicados
+                    btnGoogleRegistro.off("click");
+
+                    // Agregar nuevo handler
+                    btnGoogleRegistro.on("click", function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const btn = $(this);
+                        const googleText = btn.find('.google-text');
+                        const googleSpinner = btn.find('.google-spinner');
+                        const googleIcon = btn.find('.google-icon');
+
+                        // Deshabilitar botón y mostrar spinner
+                        btn.prop('disabled', true);
+                        btn.addClass('disabled');
+                        googleText.hide();
+                        googleIcon.hide();
+                        googleSpinner.show();
+
+                        console.log('🔐 Iniciando registro con Google OAuth...');
+
+                        // Redirigir a la ruta de autenticación de Google
+                        setTimeout(function() {
+                            window.location.href = '/auth/google/registro';
+                        }, 100);
+                    });
+
+                    console.log('✅ Handler de Google Registro configurado');
+                } else {
+                    console.warn('⚠️ Botón Google Registro no encontrado en el DOM');
+                }
+            }, 200);
 
             // Configurar handlers del modal de Google en registro
             cw.configurarHandlersModalGoogleRegistro();
@@ -284,8 +336,44 @@ function ControlWeb() {
                 cw.mostrarRecuperarPassword();
             });
 
-            // Botón Google LOGIN - Apunta a la ruta de Login explícita
-            $("#btnGoogleLogin").attr("href", "/auth/google/login");
+            // Botón Google LOGIN - Configurar click handler para redirigir
+            // Esperar a que el botón exista en el DOM
+            setTimeout(function() {
+                const btnGoogleLogin = $("#btnGoogleLogin");
+                if (btnGoogleLogin.length) {
+                    // Eliminar handlers previos para evitar duplicados
+                    btnGoogleLogin.off("click");
+
+                    // Agregar nuevo handler
+                    btnGoogleLogin.on("click", function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const btn = $(this);
+                        const googleText = btn.find('.google-text');
+                        const googleSpinner = btn.find('.google-spinner');
+                        const googleIcon = btn.find('.google-icon');
+
+                        // Deshabilitar botón y mostrar spinner
+                        btn.prop('disabled', true);
+                        btn.addClass('disabled');
+                        googleText.hide();
+                        googleIcon.hide();
+                        googleSpinner.show();
+
+                        console.log('🔐 Iniciando login con Google OAuth...');
+
+                        // Redirigir a la ruta de autenticación de Google
+                        setTimeout(function() {
+                            window.location.href = '/auth/google/login';
+                        }, 100);
+                    });
+
+                    console.log('✅ Handler de Google Login configurado');
+                } else {
+                    console.warn('⚠️ Botón Google Login no encontrado en el DOM');
+                }
+            }, 200);
 
             // Inicializar One Tap SOLO en el login, usando config del servidor
             fetch('/api/config')
@@ -795,6 +883,67 @@ function ControlWeb() {
             // Limpiar la URL después de cargar el formulario
             window.history.replaceState({}, document.title, window.location.pathname);
         } else {
+            // Si viene de login con Google exitoso, esperar a que la sesión se establezca
+            if (googleSuccess === 'login_success') {
+                console.log('✅ Login con Google exitoso detectado');
+                console.log('⏳ Esperando a que la sesión se establezca...');
+
+                // Mostrar loader mientras se verifica la sesión
+                $("#mainContainer").show();
+                $("#mainContainer").html('<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column;">' +
+                    '<div style="width: 64px; height: 64px; border: 4px solid #e2e8f0; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>' +
+                    '<div style="margin-top: 24px; color: #64748b; font-size: 16px; font-weight: 500;">¡Bienvenido! Iniciando sesión...</div>' +
+                    '<style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}</style>' +
+                    '</div>');
+
+                // Verificar la sesión cada 500ms hasta que esté lista (máximo 5 intentos)
+                let intentos = 0;
+                const maxIntentos = 10;
+                const verificarSesion = setInterval(async function() {
+                    intentos++;
+                    console.log(`🔄 Intento ${intentos}/${maxIntentos} - Verificando sesión...`);
+
+                    try {
+                        const response = await fetch('/ok', {
+                            credentials: 'include',
+                            cache: 'no-store',
+                            headers: {
+                                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                'Pragma': 'no-cache',
+                                'Expires': '0'
+                            }
+                        });
+
+                        if (response.ok) {
+                            const userData = await response.json();
+                            console.log('✅ Sesión establecida correctamente:', userData.nick);
+                            clearInterval(verificarSesion);
+
+                            // Redirigir a grupos
+                            window.location.href = '/cliente/grupos.html';
+                        } else if (intentos >= maxIntentos) {
+                            console.error('❌ Timeout: La sesión no se estableció a tiempo');
+                            clearInterval(verificarSesion);
+
+                            // Mostrar error y recargar
+                            $("#mainContainer").html('<div style="text-align: center; padding: 40px;">' +
+                                '<div style="color: #ef4444; font-size: 18px; margin-bottom: 16px;">Error al establecer la sesión</div>' +
+                                '<div style="color: #64748b; margin-bottom: 24px;">Por favor, intenta de nuevo</div>' +
+                                '<button onclick="window.location.href=\'/\'" style="background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">Volver al Login</button>' +
+                                '</div>');
+                        }
+                    } catch (error) {
+                        console.error('Error al verificar sesión:', error);
+                        if (intentos >= maxIntentos) {
+                            clearInterval(verificarSesion);
+                            window.location.href = '/?error=session_timeout';
+                        }
+                    }
+                }, 500);
+
+                return; // No continuar con el flujo normal
+            }
+
             // Mostrar el contenedor principal para login/registro
             $("#mainContainer").show();
 
@@ -825,6 +974,10 @@ function ControlWeb() {
                     let errorMsg = message ? decodeURIComponent(message) : "Error al procesar tu cuenta. Por favor, intenta de nuevo más tarde.";
                     cw.mostrarMensajeError(errorMsg);
                 }
+                // Error de timeout de sesión
+                else if (error === 'session_timeout') {
+                    cw.mostrarMensajeError("La sesión tardó demasiado en establecerse. Por favor, intenta iniciar sesión de nuevo.");
+                }
 
                 // Usuario Google ya existe
                 else if (googleSuccess === 'already_exists' && email) {
@@ -832,8 +985,10 @@ function ControlWeb() {
                     // Pre-rellenar el email en el formulario de login
                     $("#emailLogin").val(decodeURIComponent(email));
                 }
-                // Caso especial: Nuevo usuario de Google necesita definir contraseña en LOGIN
+                // 📝 Nuevo usuario de Google - Mostrar modal para completar registro
                 else if (googleSuccess === 'new_user' && email) {
+                    console.log('📝 Usuario nuevo de Google detectado');
+                    console.log('🔐 Mostrando modal para establecer usuario y contraseña');
                     cw.mostrarModalPasswordGoogle(email);
                 }
 
@@ -910,34 +1065,96 @@ function ControlWeb() {
         );
     };
 
+    // --- SISTEMA DE MODALES UNIFICADO ---
+    
+    // Función interna para mostrar el modal genérico
+    const mostrarModalGenerico = function (tipo, titulo, msg) {
+        // Limpiar timeout de mensajes anteriores (si quedara algo)
+        $("#msg").empty(); 
+
+        let headerGradient, iconBg, iconColor, iconClass, btnGradient;
+
+        // Configurar estilos según el tipo
+        switch (tipo) {
+            case 'exito':
+                headerGradient = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'; // Azul (Marca)
+                iconBg = 'rgba(59, 130, 246, 0.1)';
+                iconColor = '#3b82f6';
+                iconClass = 'fa-check-circle';
+                btnGradient = headerGradient;
+                break;
+            case 'error':
+                headerGradient = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'; // Rojo
+                iconBg = 'rgba(239, 68, 68, 0.1)';
+                iconColor = '#ef4444';
+                iconClass = 'fa-times-circle';
+                btnGradient = headerGradient;
+                break;
+            case 'info':
+            default:
+                headerGradient = 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)'; // Azul Cielo
+                iconBg = 'rgba(14, 165, 233, 0.1)';
+                iconColor = '#0ea5e9';
+                iconClass = 'fa-info-circle';
+                btnGradient = headerGradient;
+                break;
+        }
+
+        // Aplicar estilos al DOM
+        $('#modalGlobalHeader').css('background', headerGradient);
+        $('#modalGlobalIconBg').css('background', iconBg);
+        $('#modalGlobalIcon').attr('class', 'fas ' + iconClass + ' fa-3x').css('color', iconColor);
+        $('#btnCerrarModalGlobal').css('background', btnGradient);
+
+        // Establecer textos
+        $('#modalMensajeGlobalLabel').html(`<i class="fas ${iconClass} mr-2"></i>${titulo}`);
+        $('#modalGlobalTitle').text(titulo);
+        $('#modalGlobalBody').html(msg); // Usar html() por si msg trae negritas
+
+        // Mostrar Modal
+        $('#modalMensajeGlobal').modal('show');
+    };
+
+    /**
+     * Muestra un modal de éxito (Azul/Marca)
+     * Reemplaza al antiguo toast.
+     */
     this.mostrarMensajeExito = function (msg) {
-        $("#msg").removeClass("center-message");
-        $("#msg").html('<div class="alert alert-success alert-dismissible fade show" role="alert" style="box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3); font-size: 15px;">' +
-            '<strong>✓ Éxito:</strong> ' + msg +
-            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-            '<span aria-hidden="true">&times;</span>' +
-            '</button>' +
-            '</div>');
+        mostrarModalGenerico('exito', '¡Excelente!', msg);
     };
 
+    /**
+     * Muestra un modal de error (Rojo)
+     * Reemplaza al antiguo toast.
+     */
     this.mostrarMensajeError = function (msg) {
-        $("#msg").removeClass("center-message");
-        $("#msg").html('<div class="alert alert-danger alert-dismissible fade show" role="alert" style="box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3); font-size: 15px;">' +
-            '<strong>✗ Error:</strong> ' + msg +
-            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-            '<span aria-hidden="true">&times;</span>' +
-            '</button>' +
-            '</div>');
+        mostrarModalGenerico('error', '¡Ups, algo salió mal!', msg);
     };
 
+    /**
+     * Muestra un modal de información (Azul Cielo)
+     * Reemplaza al antiguo toast.
+     */
     this.mostrarMensajeInfo = function (msg) {
-        $("#msg").removeClass("center-message");
-        $("#msg").html('<div class="alert alert-info alert-dismissible fade show" role="alert" style="box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3); font-size: 15px;">' +
-            '<strong>ℹ Info:</strong> ' + msg +
-            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-            '<span aria-hidden="true">&times;</span>' +
-            '</button>' +
-            '</div>');
+        mostrarModalGenerico('info', 'Información', msg);
+    };
+
+    this.mostrarModalVerificacion = function (email) {
+        // Limpiar cualquier mensaje previo
+        $("#msg").empty();
+        if (this.msgTimeout) clearTimeout(this.msgTimeout);
+
+        // Actualizar el email en el modal
+        $("#verificacionEmail").text(email);
+
+        // Configurar el botón de ir al login
+        $("#btnIrLogin").off('click').on('click', () => {
+            $('#modalVerificacion').modal('hide');
+            this.mostrarLogin();
+        });
+
+        // Mostrar el modal
+        $('#modalVerificacion').modal('show');
     };
 
     this.salir = function () {
@@ -1333,18 +1550,12 @@ function ControlWeb() {
     };
 
     this.mostrarGrupos = function () {
-        console.log("🔄 Cargando vista de grupos...");
-        $("#mainContainer").removeClass("auth-container-wrapper");
-        $("#registro").html("").load("./cliente/grupos.html", function () {
-            console.log("✅ Vista de grupos cargada");
-        });
+        console.log("🔄 Redirigiendo a vista de grupos...");
+        window.location.href = '/cliente/grupos.html';
     };
 
     this.mostrarChat = function (grupoId, grupoNombre, usuariosActivos) {
-        console.log("🔄 Cargando chat del grupo:", grupoNombre);
-        $("#mainContainer").removeClass("auth-container-wrapper");
-        $("#registro").html("").load("./cliente/chat.html", function () {
-            console.log("✅ Chat cargado para grupo:", grupoNombre);
-        });
+        console.log("🔄 Redirigiendo a chat del grupo:", grupoNombre);
+        window.location.href = `/cliente/chat.html?grupoId=${grupoId}&grupoNombre=${encodeURIComponent(grupoNombre)}`;
     };
 }
